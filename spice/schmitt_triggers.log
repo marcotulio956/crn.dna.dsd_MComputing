@@ -1,0 +1,74 @@
+Circuit: * C:\Users\Mark\Documents\MEGAsync\CEFET\tcc\dnar\spice\schmitt_triggers.asc
+
+Warning: Multiple definitions of model "2scr375p" Type: BJT
+Warning: Multiple definitions of model "bc857b" Type: BJT
+Warning: Multiple definitions of model "bc847c" Type: BJT
+Warning: Multiple definitions of model "bc847b" Type: BJT
+Direct Newton iteration failed to find .op point.  (Use ".option noopiter" to skip.)
+Starting Gmin stepping
+Gmin = 10
+Gmin = 1.07374
+vernier = 0.5
+vernier = 0.25
+vernier = 0.125
+vernier = 0.0625
+Gmin = 1.08884
+vernier = 0.03125
+vernier = 0.015625
+Gmin = 1.03122
+vernier = 0.0078125
+vernier = 0.00390625
+Gmin = 1.01823
+vernier = 0.00520833
+vernier = 0.00260417
+Gmin = 1.01162
+vernier = 0.00347222
+vernier = 0.00173611
+vernier = 0.00231481
+vernier = 0.00115741
+Gmin = 1.00877
+vernier = 0.00154321
+vernier = 0.000771604
+Gmin = 1.00673
+vernier = 0.00102881
+vernier = 0.000514403
+vernier = 0.00068587
+Gmin = 1.00553
+vernier = 0.000514403
+vernier = 0.00068587
+vernier = 0.000514402
+Gmin = 1.00475
+Gmin = 0
+Gmin stepping failed
+
+Starting source stepping with srcstepmethod=0
+Source Step = 3.0303%
+Source Step = 33.3333%
+Source Step = 63.6364%
+Source Step = 93.9394%
+Source stepping succeeded in finding the operating point.
+
+Heightened Def Con from 0.0936221 +to 0.0936221
+Heightened Def Con from 0.0936221 to 0.0936221
+Heightened Def Con from 0.0936221 +++++++++++++++++to 0.0936221
+Heightened Def Con from 0.293622 +++++++++++++++++to 0.293622
+Heightened Def Con from 0.693622 to 0.693622
+Heightened Def Con from 0.693622 +++++++++++++++++to 0.693622
+
+Date: Fri Dec 20 11:07:15 2024
+Total elapsed time: 0.573 seconds.
+
+tnom = 27
+temp = 27
+method = modified trap
+totiter = 17234
+traniter = 11310
+tranpoints = 2363
+accept = 1697
+rejected = 724
+matrix size = 34
+fillins = 8
+solver = Normal
+Matrix Compiler1: 1.83 KB object code size  0.7/0.4/[0.2]
+Matrix Compiler2: 2.94 KB object code size  0.3/0.4/[0.2]
+

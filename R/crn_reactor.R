@@ -89,6 +89,8 @@ get_M <- function(reactions, species) {
 #' @example demo/main_crn.R
 react <- function(species, ci, reactions, ki, t, verbose = FALSE, ...) {
     # Check the crn specification
+    #print(species)
+    #print(ci)
     reactions <- check_crn(species, ci, reactions, ki, t)
 
     # Get stoichiometry information
@@ -133,7 +135,11 @@ react <- function(species, ci, reactions, ki, t, verbose = FALSE, ...) {
 
         list(dy)
     }
-
+    print("= DESOLVE: ")
+    print("  ci")
+    print(ci)
+    print("  fx")
+    print(fx)
     result <- deSolve::ode(times = t, y = ci, func = fx, parms = NULL, ...)
     if(verbose) {
         print(deSolve::diagnostics.deSolve(result))

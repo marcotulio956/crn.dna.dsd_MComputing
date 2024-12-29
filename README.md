@@ -504,6 +504,57 @@ parameters required by `react()`, it can be built on top of DNAr. So feel free
 to implement a plug-in yourself. Two good yet not done examples of approaches
 to build CRNs for a specific purposes are **[2]** and **[3]**.
 
+# DNArLogic
+
+This is a R package developed to design and simulate digital logic circuits
+implemented in formal Chemical Reaction Networks (CRN) and DNA-based reaction
+networks using Strand Displacement reactions.
+
+This package uses [DNAr](https://git.nanocomp.dcc.ufmg.br/dnacomputing/dnar).
+
+## How to Install It
+
+Firstly, using the R console, install the `devtools` package:
+
+```R
+install.packages("devtools")
+```
+
+After that, just install the `DNAr` package:
+
+```R
+library(devtools)
+devtools::install_github('renanmarks/dnarlogic')
+```
+
+# DNArAnalog
+
+DNArAnalog is an R package to store many analog gates/units to simulate them 
+quickly in the DNAr tool. This solution allows the modular implementation 
+of more complex molecular analog circuits, then simulates their behavior in CRN 
+and DSD reaction levels in a single software environment.
+
+This package uses [DNAr](https://git.nanocomp.dcc.ufmg.br/dnacomputing/dnar)
+and [DNArLogic](https://git.nanocomp.dcc.ufmg.br/dnacomputing/dnar-logic).
+
+![DNArAnalog_image](demo/dnar_library_v1.png)
+
+## How to Install It
+
+Firstly, using the R console, install the `devtools` package:
+
+```R
+install.packages("devtools")
+```
+
+After that, install the `DNArAnalog` package:
+
+```R
+devtools::install_git('https://git.nanocomp.dcc.ufmg.br/dnacomputing/dnar-analog')
+```
+
+# DNArElectro ---- FIRST COMMIT
+
 ## References
 
 - **[1]** Soloveichik, David, Georg Seelig, and Erik Winfree. "DNA

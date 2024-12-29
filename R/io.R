@@ -125,6 +125,9 @@ fte_theme <- function() {
 #'          can modify the plot or save it in a different way.
 #'
 #' @export
+#' 
+#' 
+
 plot_behavior <- function(
     behavior,
     species = NULL,
@@ -206,6 +209,15 @@ plot_behavior <- function(
     # Return the plot object
     return(g)
 }
+
+# species = c(circuito$gates[[numero]]$species$input1,
+#                                             circuito$gates[[numero]]$species$input2,
+#                                             circuito$gates[[numero]]$species$input3,
+#                                             circuito$gates[[numero]]$species$input4,
+#                                             circuito$gates[[numero]]$species$output,
+#                                             circuito$gates[[numero]]$species$output1,
+#                                             circuito$gates[[numero]]$species$output2,
+#                                             circuito$gates[[numero]]$species$output3)
 
 #' Save the reactions in a formatted text file
 #'
