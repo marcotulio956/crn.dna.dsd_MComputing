@@ -1,1 +1,0 @@
-# move LC_resonant in playground to here

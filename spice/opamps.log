@@ -1,28 +1,19 @@
+LTspice 24.0.12 for Windows
 Circuit: * C:\Users\Mark\Documents\MEGAsync\CEFET\tcc\dnar\spice\opamps.asc
-
-WARNING: Specified period is not longer than the sum of Trise, Tfall, and Ton for v1.  Increasing period to 1.001
-WARNING: Node NC_06 is floating.
-WARNING: Node U5:RAILN is floating.
-
-WARNING: Less than two connections to node N005.  This node is used by R3.
-WARNING: Less than two connections to node V3.  This node is used by V3.
-WARNING: Less than two connections to node NC_07.  This node is used by A:U2:1.
-Direct Newton iteration for .op point succeeded.
-
-Date: Sun Dec 22 20:18:28 2024
-Total elapsed time: 0.281 seconds.
-
+Start Time: Mon Jan  6 15:43:47 2025
+solver = Normal
+Maximum thread count: 8
 tnom = 27
 temp = 27
 method = modified trap
-totiter = 10759
-traniter = 10756
-tranpoints = 5379
-accept = 5303
-rejected = 76
-matrix size = 50
-fillins = 24
-solver = Normal
-Matrix Compiler1: 3.34 KB object code size  0.7/0.4/[0.2]
-Matrix Compiler2: 4.23 KB object code size  0.2/0.5/[0.2]
+WARNING: Specified period is not longer than the sum of Trise, Tfall, and Ton for v1.  Increasing period to 1.001
+WARNING: Node NC_05 is floating.
+WARNING: Node U5:N005 is floating.
+
+WARNING: Less than two connections to node n005.  This node is used by r3.
+WARNING: Less than two connections to node v2.  This node is used by v2.
+WARNING: Less than two connections to node v3.  This node is used by v3.
+WARNING: Less than two connections to node nc_07.  This node is used by a:u2:1.
+Direct Newton iteration for .op point succeeded.
+Total elapsed time: 0.668 seconds.
 

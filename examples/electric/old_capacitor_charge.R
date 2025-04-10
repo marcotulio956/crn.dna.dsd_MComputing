@@ -100,6 +100,7 @@ Make_Capacitor_ <- function(name, species_input, species_output, ic) {
   )
   gates[[length(gates)+1]] <- g5
 
+  
   return (gates)
 
   # I_total = I_init + dT_out
@@ -144,7 +145,7 @@ Make_Generic <- function(timing) {
   c1$il$voltage <- 'c1il_voltage'
   c1$il$current <- 'c1il_current'
   c1$ol$charge <- 'c1ol_charge'
-  c1$ol$voltage <- 'c1ol_voltage'
+  c1$ol$voltage <- 'c1ol_nvoltage'
   c1$ol$current <- 'c1ol_current'
   c1$ic$charge <- 50
   c1$ic$voltage <- vcc1$ic$voltage
@@ -185,7 +186,7 @@ gate_number = 1
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
   #plot_species=c('c1ol_voltage', 'c1_l_v_rate1','c1ol_current','c1ol_charge'),
-  plot_species=c('c1il_charge', 'c1ol_charge', 'c1ol_voltage', 'c1ol_current'),
+  plot_species=c('c1ol_nvoltage', 'c1ol_current'),
   #plot_species=c(),
   timing
 )
@@ -198,4 +199,5 @@ Plot_behavior(
 #resultado_comb <- Compare_behaviors(resultado_crn, resultado_4dom, circuit, gate_number)
 #
 #p1 <- Plot_behavior_comb(resultado_comb, circuit, gate_number, minimum, maximum, TRUE)
+
 

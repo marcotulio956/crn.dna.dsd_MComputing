@@ -22,23 +22,41 @@ jn <- function(...) { paste(..., sep = '') }
 library(ggplot2) # plot()
 library(dplyr) # mutate()
 
-Make_Capacitor_ <- function(name, species_input, species_output, ic) {
-
-}
-
 Make_Generic <- function(timing) {
   circuit <- DNArLogic::make_circuit(timing)
   
-  # - Dig and Analog
-  g1 <- Make_Oscillator_Dalchau('clk', 'clk1', 'clk2', 'clk3', 15, 5, 10, 2e-5)
+  i1 <- Make_CurrentSource_Component(1, 5)
+
+  l1 <- Make_Inductor_Component(2, 5)
+  l1$il$current_positive <- i1$ol$current
+  # c1$ic$voltage_positive <- 0
+  l1$ic$current_positive <- i1$ic$current
+  # c1$ic$voltage_negative <- 10
+
+  # - Electro
+  e1_gates <- Make_Circuit_Inductor(l1$name, l1$il, l1$ol, l1$ic, 15e-1)
+  print(e1_gates)
   # add2circuit
-  circuit <- DNArLogic::circuit_add_gate(circuit, g1)
+  circuit <- circuit_add_electro_gates(circuit, e1_gates)
+  #circuit <- circuit_add_electro_gates(circuit, e2_gates)
+
+  # - Dig and Analog
+  #g1 <- Make_Mul2In_Wang(r1$name, r1$il$current, jn(r1$name, '_R'), r1$ol$voltage, r1$ic$current, r1$ic$resistence, 2e3)
+  #g2 <- Make_Div2In_Wang(r1$name, r1$il$voltage, jn(r1$name, '_R'), r1$ol$current, r1$ic$voltage, r1$ic$resistence, 1e3, 2e3)
+  #g1 <- make_latchd('latch1',2, 1)
+  #g2 <- make_flipflopd('ffd1', 2, 1)
+  #g1 <- Make_Div2In_Wang('div1w', 'Xd4', 'Yd4', 'Zd4', 1, 5, 0.5, 1e3)
+  # add2circuit
+  #circuit <- DNArLogic::circuit_add_gate(circuit, g1)
   #circuit <- DNArLogic::circuit_add_gate(circuit, g2)
 
   return (circuit)
 }
 
-timing  <- seq(0, 0.01, length.out = 50) # Using 50 time points
+t0 = 0
+t1 = 10
+points = (t1 - t0) * 100 # Using 50 time points
+timing  <- seq(t0, t1, length.out = points) # Using 50 time points
 circuit <- Make_Generic(timing)
 result_crn <- React_circuit(circuit)
 
@@ -47,11 +65,12 @@ minimum = expected_value * 0.95
 maximum = expected_value * 1.05
 gate_number = 1
 
+result_crn['l2ol_ip'] <- result_crn['l2ol_ip'] * 0.1
+
 Plot_behavior(
+  chart_title="test",
   result_crn, circuit, gate_number, minimum, maximum,
- # plot_species=c('c1ol_voltage', 'c1_l_v_rate1','c1ol_current','c1ol_charge'),
-  plot_species=c(),
-  add_capacitor = FALSE, R = 1000, C = 0.0001, V_max = 15, 
+  plot_species=c('i1_i', 'l2ol_vp', 'l2ol_vn', 'l2ol_ip', 'l2ol_in', 'l2l_pflux'),
   timing
 )
 # Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, plot_species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))

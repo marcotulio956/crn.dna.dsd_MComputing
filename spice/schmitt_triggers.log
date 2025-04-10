@@ -1,9 +1,11 @@
+LTspice 24.0.12 for Windows
 Circuit: * C:\Users\Mark\Documents\MEGAsync\CEFET\tcc\dnar\spice\schmitt_triggers.asc
-
-Warning: Multiple definitions of model "2scr375p" Type: BJT
-Warning: Multiple definitions of model "bc857b" Type: BJT
-Warning: Multiple definitions of model "bc847c" Type: BJT
-Warning: Multiple definitions of model "bc847b" Type: BJT
+Start Time: Mon Jan  6 14:17:22 2025
+solver = Normal
+Maximum thread count: 8
+tnom = 27
+temp = 27
+method = modified trap
 Direct Newton iteration failed to find .op point.  (Use ".option noopiter" to skip.)
 Starting Gmin stepping
 Gmin = 10
@@ -48,27 +50,7 @@ Source Step = 63.6364%
 Source Step = 93.9394%
 Source stepping succeeded in finding the operating point.
 
-Heightened Def Con from 0.0936221 +to 0.0936221
-Heightened Def Con from 0.0936221 to 0.0936221
-Heightened Def Con from 0.0936221 +++++++++++++++++to 0.0936221
-Heightened Def Con from 0.293622 +++++++++++++++++to 0.293622
-Heightened Def Con from 0.693622 to 0.693622
 Heightened Def Con from 0.693622 +++++++++++++++++to 0.693622
-
-Date: Fri Dec 20 11:07:15 2024
-Total elapsed time: 0.573 seconds.
-
-tnom = 27
-temp = 27
-method = modified trap
-totiter = 17234
-traniter = 11310
-tranpoints = 2363
-accept = 1697
-rejected = 724
-matrix size = 34
-fillins = 8
-solver = Normal
-Matrix Compiler1: 1.83 KB object code size  0.7/0.4/[0.2]
-Matrix Compiler2: 2.94 KB object code size  0.3/0.4/[0.2]
+Heightened Def Con from 0.893622 +++++++++++++++++to 0.893622
+Total elapsed time: 0.585 seconds.
 

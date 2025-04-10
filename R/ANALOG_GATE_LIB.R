@@ -415,46 +415,6 @@ Make_Adder2In_Wang <- function(name, nameInput1, nameInput2, nameOutput,
   return(add_gate_w)
 }
 
-Make_Adder_apBeC <- function(name, nameInput1, nameInput2, nameOutput,
-                             cinput1, cinput2, cfuel, rate) {
-  species <- list(
-    input1 = nameInput1,
-    input2 = nameInput2,
-    output = nameOutput,
-    intermediate3 = jn(name, '_A'),
-    intermediate1 = jn(name, '_B'),
-    intermediate2 = jn(name, '_waste')
-  )
-
-  ci <- c(cinput1, cinput2, 0, 0, cfuel, 0)
-
-  reactions <- c(
-    # 'x1 -> A + 'waste'
-    jn(species$input1, ' -> ', species$intermediate3, ' + ', species$intermediate2),
-    # 'A -> A + z1'
-    jn(species$intermediate3, ' -> ', species$intermediate3, ' + ', species$output),
-    # 'z1 + B -> z1 + z1'
-    jn(species$output, ' + ', species$intermediate1, ' -> ',
-       species$output, ' + ', species$output),
-    # 'y1 -> y1 + B'
-    jn(species$input2, ' -> ', species$input2, ' + ', species$intermediate1),
-    # 'z1 -> waste'
-    jn(species$output, ' -> ', species$intermediate2)
-  )
-
-  ki        <- c(rate, rate, rate, rate, rate)
-
-  add_gate_w <- list(
-    name      = name,
-    species   = species,
-    reactions = reactions,
-    ci        = ci,
-    ki        = ki
-  )
-
-  return(add_gate_w)
-}
-
 # _____________________________________________________________________________
 
 #' @export
@@ -829,8 +789,8 @@ Make_Mux2 <- function(name, nameInput1, nameInput2, nameControl1, nameControl2,
   species <- list(
     input1 = nameInput1, #E1
     input2 = nameInput2, #E2
-    control1 = nameControl1,  #C1
-    control2 = nameControl2,  #C2
+    output1 = nameControl1,  #C1
+    output2 = nameControl2,  #C2
     gate1E = jn(name, '_GEn1'), #G1E
     gate2E = jn(name, '_GEn2'), #G2E
     gate1U = jn(name, '_GUn1'), #G1U
@@ -842,13 +802,13 @@ Make_Mux2 <- function(name, nameInput1, nameInput2, nameControl1, nameControl2,
 
   reactions <- c(
     # 'G1U + C1 -> G1E'
-    jn(species$gate1U, ' + ', species$control1, ' -> ', species$gate1E),
+    jn(species$gate1U, ' + ', species$output1, ' -> ', species$output1, species$gate1E),
     # 'G1E + C2 -> G1U'
-    jn(species$gate1E, ' + ', species$control2, ' -> ', species$gate1U),
+    jn(species$gate1E, ' + ', species$output2, ' -> ', species$output2, species$gate1U),
     # 'G2U + C2 -> G2'
-    jn(species$gate2U, ' + ', species$control2, ' -> ', species$gate2E),
+    jn(species$gate2U, ' + ', species$output2, ' -> ', species$output2, species$gate2E),
     # 'G2E + C1 -> G2U'
-    jn(species$gate2E, ' + ', species$control1, ' -> ', species$gate2U),
+    jn(species$gate2E, ' + ', species$output1, ' -> ', species$output1, species$gate2U),
     # 'E1 + G1 -> Output'
     jn(species$input1, ' + ', species$gate1E, ' -> ', species$output),
     # 'E2 + G2 -> Output'

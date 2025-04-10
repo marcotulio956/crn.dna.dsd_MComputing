@@ -130,6 +130,7 @@ fte_theme <- function() {
 
 plot_behavior <- function(
     behavior,
+    chart_title="test",
     species = NULL,
     x_label = 'Time',
     y_label = 'Concentration',
@@ -158,6 +159,12 @@ plot_behavior <- function(
         species <- names(behavior)[2:dim(behavior)[2]]
     }
 
+    for (specie in species) {
+        if (!(specie %in% colnames(behavior))) {
+            stop(paste('The specie ', specie, ' is not in the behavior data frame.'))
+        }
+    }
+
     # Convert the data frame to the proper format
     df <- behavior[,c('time', species)]
     dfm <- reshape2::melt(df, id.vars = 'time')
@@ -168,7 +175,9 @@ plot_behavior <- function(
     )) +
         ggplot2::theme_minimal(base_size = 18) +
         ggplot2::labs(x = x_label, y = y_label, color = legend_name) +
-        ggplot2::scale_color_brewer(palette="Dark2")
+        ggplot2::scale_color_brewer(palette="Dark2") +
+        ggplot2::ggtitle(chart_title)
+
     for(geometric in geom_list) {
         g <- g + geom(geometric)
     }

@@ -89,8 +89,6 @@ get_M <- function(reactions, species) {
 #' @example demo/main_crn.R
 react <- function(species, ci, reactions, ki, t, verbose = FALSE, ...) {
     # Check the crn specification
-    #print(species)
-    #print(ci)
     reactions <- check_crn(species, ci, reactions, ki, t)
 
     # Get stoichiometry information
@@ -120,28 +118,33 @@ react <- function(species, ci, reactions, ki, t, verbose = FALSE, ...) {
             return(0)
         }
     })
+    
 
     # Define function for deSolve
     fx <- function(t, y, parms) {
         # Define the vector, which specifies the impact magnitude of
         # each reaction
-        v <- matrix(mapply(function(react_map, k, v_exp) {
-            vi <- k * prod(y[react_map]^v_exp)
-        }, reactant_map, ki, v_exp_reactants))
+        v <- matrix(
+            mapply(
+                function(react_map, k, v_exp) {
+                    vi <- k * prod(y[react_map]^v_exp)
+                }, 
+                reactant_map,
+                ki,
+                v_exp_reactants
+            )
+        )
 
         # Multiply the impact magnitude of each reaction with the stoichiometry
         # of each species to get the new species concentrations
         dy <- Mt %*% v
 
         list(dy)
+
     }
-    print("= DESOLVE: ")
-    print("  ci")
-    print(ci)
-    print("  fx")
-    print(fx)
     result <- deSolve::ode(times = t, y = ci, func = fx, parms = NULL, ...)
     if(verbose) {
+        print("= DESOLVE: ")
         print(deSolve::diagnostics.deSolve(result))
     }
 

@@ -1,5 +1,7 @@
 % MATLAB Code for Isolated Capacitor and Inductor with Square Input
 
+clc; clear; close all;
+
 % Parameters
 R = 1;    % Resistance in ohms
 C = 1;    % Capacitance in farads
@@ -7,7 +9,7 @@ L = 1;    % Inductance in henries
 
 % Simulation parameters
 num_points = 1000; % Number of simulation points
-T = 10;           % Simulation time in seconds
+T = 15;           % Simulation time in seconds
 t = linspace(0, T, num_points); % Time vector
 
 % Square wave input
@@ -64,14 +66,14 @@ xlabel('Time (s)'); ylabel('Current (A)');
 title('Capacitor Current'); grid on;
 
 subplot(2, 2, 3);
-plot(t, E_C, 'g', 'LineWidth', 1.5);
-xlabel('Time (s)'); ylabel('Electric Field (V/m)');
-title('Capacitor Electric Field'); grid on;
+plot(t, V_L, 'g', 'LineWidth', 1.5);
+xlabel('Time (s)'); ylabel('Inductor Voltage(V)');
+title('Inductor Voltage'); grid on;
 
 subplot(2, 2, 4);
-plot(t, V_in, 'k', 'LineWidth', 1.5);
-xlabel('Time (s)'); ylabel('Input Voltage (V)');
-title('Input Voltage'); grid on;
+plot(t, I_L, 'k', 'LineWidth', 1.5);
+xlabel('Time (s)'); ylabel('Inductor Current (A)');
+title('Inductor Current'); grid on;
 
 % figure;
 % subplot(2, 2, 1);
@@ -95,5 +97,5 @@ title('Input Voltage'); grid on;
 % title('Input Voltage'); grid on;
 
 % Save results to CSV
-csvwrite('capacitor_results.csv', [t' V_C' I_C' E_C']);
+%csvwrite('capacitor_results.csv', [t' V_C' I_C' E_C']);
 % csvwrite('inductor_results.csv', [t' V_L' I_L' B_L']);

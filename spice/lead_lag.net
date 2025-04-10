@@ -1,0 +1,10 @@
+* C:\Users\Mark\Documents\MEGAsync\CEFET\tcc\dnar\spice\lead_lag.asc
+R1 N001 N002 1
+L1 N002 0 1
+I1 0 N001 SINE(6m 5m 2 0.01)
+V1 N003 0 SINE(6 2 2 0.01)
+R2 N004 N003 1
+C1 0 N004 1
+.tran 10
+.backanno
+.end

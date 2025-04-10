@@ -23,7 +23,6 @@ library(ggplot2) # plot()
 library(dplyr) # mutate()
 
 Make_Inductor_ <- function(name, species_input, species_output, ic) {
-
   rate <- 2e3
   gates <- list()
 
@@ -37,7 +36,7 @@ Make_Inductor_ <- function(name, species_input, species_output, ic) {
 
   # I_out rate 1= F_l*[1/L]
   l_invL = jn(name, '_l_invL')
-  l_i_rate1 = jn(name, '_l_i_rate1')
+  l_i_rate1 = jn(name, '_l_v_out')
   g2 <- Make_Mul2In_Wang(jn(name,'mul2'),
     species_output$flux, l_invL, l_i_rate1,
     0, 1/ic$inductance,
@@ -80,8 +79,8 @@ Make_Generic <- function(timing) {
   vcc1$name <- 'vcc1'
   vcc1$ol$voltage <- 'vcc1_vcc'
   vcc1$ol$current <- 'vcc1_i'
-  vcc1$ic$voltage <- 0
-  vcc1$ic$current <- 10
+  vcc1$ic$voltage <- 10
+  vcc1$ic$current <- 0
 
   l1 = c()
   l1$name <- 'l1'
@@ -120,7 +119,8 @@ gate_number = 1
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
-  plot_species=c('l1ol_current', 'l1ol_voltage', 'l1_l_i_rate1'),
+  plot_species=c('l1ol_current', 'l1ol_voltage'),
+  #plot_species=c('l1_l_i_out'),
   timing
 )
 # Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, plot_species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))
