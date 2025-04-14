@@ -80,39 +80,35 @@ Make_Generic <- function(timing) {
       'comp_out',
       0, 0,
       3, 8,
-      0, 7.1e-1
+      0, 7.0e-1
     )
 
     # add2circuit
     circuit <- circuit_add_gate(circuit, g_dalchau)
     circuit <- circuit_add_gate(circuit, c_comparator)
 
-  c1 <- Make_Capacitor_Component(1, 0.1) # 3.32 = v{v} c{~} ; 6.32 = v{~} c{^} ; 9.32 = v{^} c{^}
-  l1 <- Make_Inductor_Component(1, 10)
+  c1 <- Make_Capacitor_Component(1, 0.05) # 3.32 = v{v} c{~} ; 6.32 = v{~} c{^} ; 9.32 = v{^} c{^}
 
   c1$il$voltage_positive <- 'c1il_v1p'
-  l1$il$current_positive <- 'c1il_v1p'
   
   c1$ic$voltage_positive <- 0
   c1$ic$voltage_negative <- 0
 
   # - Electro
   rate <- 1
+  
   e1_gates <- Make_Circuit_Capacitor(c1$name, c1$il, c1$ol, c1$ic, rate)
-  e2_gates <- Make_Circuit_Inductor(l1$name, l1$il, l1$ol, l1$ic, rate)
   
   print(e1_gates)
-  #print(e2_gates)
-
+  
   # add2circuit
   circuit <- circuit_add_electro_gates(circuit, e1_gates)
-  #circuit <- circuit_add_electro_gates(circuit, e2_gates)
-
+  
   return (circuit)
 }
 
 t0 = 0
-t1 = 50
+t1 = 40
 points = (t1 - t0) * 100 # Using 50 time points
 timing  <- seq(t0, t1, length.out = points) # Using 50 time points
 circuit <- Make_Generic(timing)
@@ -125,14 +121,16 @@ gate_number = 1
 
 result_crn['c1il_v1p'] <- result_crn['c1il_v1p']
 
-v_scale <- 0.1
+resultado_4dom <- React_4domain_circuit(circuit)
+
+v_scale <- 1e-1
 result_crn['c1ol_vp'] <- result_crn['c1ol_vp'] * v_scale
 result_crn['c1ol_vn'] <- result_crn['c1ol_vn'] * v_scale
 result_crn['c1ol_v'] <- result_crn['c1ol_vp'] - result_crn['c1ol_vn']
 result_crn['c1ol_vp'] <- NULL
 result_crn['c1ol_vn'] <- NULL
 
-i_scale <- 10
+i_scale <- 1e1
 result_crn['c1ol_ip'] <- result_crn['c1ol_ip'] * i_scale
 result_crn['c1ol_in'] <- result_crn['c1ol_in'] * i_scale
 result_crn['c1ol_i'] <- result_crn['c1ol_ip'] - result_crn['c1ol_in']
@@ -145,7 +143,7 @@ simRC <- dnarElectric_simRC(
 
 result_crn['V(C)'] <- simRC$capacitor_voltage
 result_crn['V(R)'] <- simRC$resistor_voltage
-result_crn['I(C,R)'] <- 1e3 * simRC$current_output
+result_crn['I(R,C)'] <- 1e3 * simRC$current_output
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
@@ -153,17 +151,31 @@ Plot_behavior(
   #plot_species=c('x', 'c1ol_ip', 'c1ol_vp'),
   #plot_species=c('x', 'y', 'z'),
   #plot_species=c('c1il_v1p', 'c1ol_i', 'c1ol_v', 'V(C)', 'V(R)', 'I(C,R)'),
-  plot_species=c('c1il_v1p', 'c1ol_i', 'c1ol_v', 'V(C)', 'I(C,R)'),
-  chart_title = 'Capacitor Step Response CRN Vcc=10[V] C=4.75[mF]',
+  plot_species=c('c1il_v1p', 'c1ol_i', 'c1ol_v', 'V(C)', 'I(R,C)'),
+  chart_title = 'Capacitor Step Response CRN Vcc=10[V] R=500[ohm] C=50e-4[F]',
   timing
 )
 
-# resultado_4dom <- React_4domain_circuit(circuit)
+resultado_4dom$behavior['c1ol_vp'] <- resultado_4dom$behavior['c1ol_vp'] * v_scale
+resultado_4dom$behavior['c1ol_vn'] <- resultado_4dom$behavior['c1ol_vn'] * v_scale
+resultado_4dom$behavior['c1ol_v'] <- resultado_4dom$behavior['c1ol_vp'] - resultado_4dom$behavior['c1ol_vn']
+resultado_4dom$behavior['c1ol_vp'] <- NULL
+resultado_4dom$behavior['c1ol_vn'] <- NULL
 
-# Plot_behavior(
-#   resultado_4dom$behavior, circuit, gate_number, minimum, maximum,
-#   plot_species=c('c1il_v1p', 'c1ol_ip', 'c1ol_in', 'c1ol_vp', 'c1ol_vn'),
-#   chart_title = 'Step Response DSD Vcc=6.32[V] C=4.75[mF]',
-#   timing
-# )
-# #
+resultado_4dom$behavior['c1ol_ip'] <- resultado_4dom$behavior['c1ol_ip'] * i_scale
+resultado_4dom$behavior['c1ol_in'] <- resultado_4dom$behavior['c1ol_in'] * i_scale
+resultado_4dom$behavior['c1ol_i'] <- resultado_4dom$behavior['c1ol_ip'] - resultado_4dom$behavior['c1ol_in']
+resultado_4dom$behavior['c1ol_ip'] <- NULL
+resultado_4dom$behavior['c1ol_in'] <- NULL
+
+resultado_4dom$behavior['V(C)'] <- simRC$capacitor_voltage
+resultado_4dom$behavior['V(R)'] <- simRC$resistor_voltage
+resultado_4dom$behavior['I(R,C)'] <- 1e3 * simRC$current_output
+
+ Plot_behavior(
+   resultado_4dom$behavior, circuit, gate_number, minimum, maximum,
+   plot_species=c('c1il_v1p', 'c1ol_i', 'c1ol_v', 'V(C)', 'I(R,C)'),
+   chart_title = 'Capacitor Step Response DSD Vcc=10[V] R=500[ohm] C=50e-4[F]',
+   timing
+ )
+

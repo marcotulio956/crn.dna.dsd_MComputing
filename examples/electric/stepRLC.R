@@ -72,105 +72,82 @@ Make_Generic <- function(timing) {
   circuit <- DNArLogic::make_circuit(timing)
   
   # - Dig and Analog
-    g_dalchau <- Make_Oscillator_Dalchau('sin', 'x', 'l1il_i1p', 'z', 1e-3, 1e-3, 15, 4e-1)
+    g_dalchau <- Make_Oscillator_Dalchau('sin', 'x', 'v1p', 'z', 1e-3, 1e-3, 15, 4e-1)
     c_comparator <- Make_Mux2_balanced(
       'mux1',
-      'x', 'l1il_i1p', 
+      'x', 'v1p', 
       'low', 'high',
       'comp_out',
       0, 0,
       3, 8,
-      0, 7.0e-1
+      0, 7.1e-1
     )
 
     # add2circuit
     circuit <- circuit_add_gate(circuit, g_dalchau)
     circuit <- circuit_add_gate(circuit, c_comparator)
+  
+  rlc <- Make_RLC_Component(5, 10, 3)
 
-  l1 <- Make_Inductor_Component(1, 0.1)
+  rlc$il$voltage_positive <- 'v1p'
 
-  l1$il$current_positive <- 'l1il_i1p'
-    
-  # - Electro
   rate <- 1
-  l1_gate <- Make_Circuit_FakeInductor(l1$name, l1$il, l1$ol, l1$ic, rate)
-  
-  
-  print(l1_gate)
-  
-  # add2circuit
-  #circuit <- circuit_add_electro_gates(circuit, l1_gate)
+  fuel <- 100
+  rlc_gate <- Make_Circuit_RLC(rlc$name, rlc$il, rlc$ol, rlc$ic, rate, fuel)
+
+  circuit <- circuit_add_electro_gates(circuit, rlc_gate)
 
   return (circuit)
 }
 
 t0 = 0
-t1 = 40
-points = (t1 - t0) * 100 # Using 50 time points
+t1 = 150
+points = (t1 - t0) * 50 # * 80 # Using 50 time points
 timing  <- seq(t0, t1, length.out = points) # Using 50 time points
 circuit <- Make_Generic(timing)
+
 result_crn <- React_circuit(circuit)
+result_crn <- result_crn[, order(names(result_crn))]
 
 expected_value = 10
 minimum = expected_value * 0.95
 maximum = expected_value * 1.05
 gate_number = 1
 
-# result_crn['l1il_i1p'] <- result_crn['l1il_i1p']
+vc_scale <- 1
+result_crn['rlcol_vcp'] <- result_crn['rlcol_vcp'] * vc_scale
+result_crn['rlcol_vcn'] <- result_crn['rlcol_vcn'] * vc_scale
+result_crn['rlcol_vc'] <- result_crn['rlcol_vcp'] - result_crn['rlcol_vcn']
 
-# ol_v_scale <- 1e-1
-# result_crn['l1ol_vp'] <- result_crn['l1ol_vp'] * ol_v_scale
-# result_crn['l1ol_vn'] <- result_crn['l1ol_vn'] * ol_v_scale
-# result_crn['l1ol_v'] <- result_crn['l1ol_vp'] - result_crn['l1ol_vn']
-
-# ol_il_scale <- 1e-2
-# result_crn['l1ol_pil'] <- result_crn['l1ol_pil'] * ol_il_scale
-# result_crn['l1ol_nil'] <- result_crn['l1ol_nil'] * ol_il_scale
-# result_crn['l1ol_il'] <- result_crn['l1ol_pil'] - result_crn['l1ol_nil']
-
-# ol_ir_scale <- 1
-# result_crn['l1ol_pir'] <- result_crn['l1ol_pir'] * ol_ir_scale
-# result_crn['l1ol_nir'] <- result_crn['l1ol_nir'] * ol_ir_scale
-# result_crn['l1ol_ir'] <- result_crn['l1ol_pir'] - result_crn['l1ol_nir']
+i_scale <- 1
+result_crn['rlcol_ip'] <- result_crn['rlcol_ip'] * i_scale
+result_crn['rlcol_in'] <- result_crn['rlcol_in'] * i_scale
+result_crn['rlcol_i'] <- result_crn['rlcol_ip'] - result_crn['rlcol_in']
 
 
-#ol_v_scale <- 1
-#result_crn['l1ol_vp'] <- result_crn['l1ol_vp'] * ol_v_scale
-#result_crn['l1ol_vn'] <- result_crn['l1ol_vn'] * ol_v_scale
-#result_crn['l1ol_v'] <- result_crn['l1ol_vp'] - result_crn['l1ol_vn']
+R <- 5#1e3         # 1 kOhm
+L <- 10#15e-3       # 15 mH
+C <- 3#15e-4       # 150 uF
 
-#ol_i_scale <- 1
-#result_crn['l1ol_ip'] <- result_crn['l1ol_ip'] * ol_i_scale
-#result_crn['l1ol_in'] <- result_crn['l1ol_in'] * ol_i_scale
-#result_crn['l1ol_i'] <- result_crn['l1ol_ip'] - result_crn['l1ol_in']
+simRLC <- simulate_sRLC_voltage_source(
+  timing, result_crn[['v1p']], R, L, C
+)
+
+# Result 1 : Series RLC circuit simulation with Voltage Source
+result_crn['V(C)'] <- 1 * simRLC$capacitor_voltage
+result_crn['I(L)'] <- 1 * simRLC$inductor_current
+result_crn['V(S)'] <- 1 * simRLC$source_voltage
+#result_crn['V(R)'] <- 1 * simRLC$resistor_voltage
+#result_crn['V(L)'] <- 1 * simRLC$inductor_voltage
 
 
-#simsRL_vs <- simulate_sRL_voltage_source(
-#  timing, result_crn[['l1il_i1p']], 1e3, 500
-#)
-
-#simpRL_cs <- simulate_pRL_current_source(
-#  timing, result_crn[['l1il_i1p']], 1e3, 500
-#)
-
-# Result 1 : Series RL circuit simulation with Voltage Source - Compare with DNAr Model
-#result_crn['V(S)'] <- 1 * simsRL_vs$source_voltage
-#result_crn['I(L)'] <- 1e3 * simsRL_vs$inductor_current
-#result_crn['V(R)'] <- 1 * simsRL_vs$resistor_voltage 
-#result_crn['V(L)'] <- 1 * simsRL_vs$inductor_voltage
-
-# Result 2 : Parallel RL circuit simulation with Current Source - Compare with DNAr Model
-    # result_crn['I(S)'] <- 1* simpRL_cs$source_current
-    # result_crn['I(L)'] <- 1 * simpRL_cs$inductor_current
-    # result_crn['V(L)'] <- 1e-3 * simpRL_cs$node_voltage 
-    # result_crn['V(R)'] <- 1e-3 * simpRL_cs$resistor_voltage # V(R) = V(L)
+chart_t <- cat(sprintf("RLC Step Response CRN Vin=10[V] R=\"%s\" L=\"%s\" C=\"%s\"\n", R, L, C))
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
-  plot_species=c('l1il_i1p'), # show model result
-  # plot_species=c('V(S)', 'I(L)', 'V(R)', 'V(L)'), # show results 1
-  # plot_species=c('I(S)', 'I(L)', 'V(L)', 'V(R)'), # show results 2
-  chart_title = 'Inductor Step Response CRN Iin=10[A] R=500[ohm] L=1k[H]',
+  #plot_species=c('V(S)', 'V(C)', 'I(L)'), # show results 1: 'V(S)', 'V(C)', 'I(L)', 'V(R)', 'V(L)'
+  plot_species=c('v1p', 'rlcol_vc', 'rlcol_i', 'V(C)', 'I(L)'), # show model 'v1p', 'rlcol_vc', 'rlcol_i'
+  chart_title = chart_t,
   timing
 )
 # Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, plot_species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))

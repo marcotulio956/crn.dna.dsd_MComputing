@@ -52,6 +52,8 @@ Make_Adder_apBeC <- function(name, nameInput1, nameInput2, nameOutput,
 Make_Circuit_Capacitor <- function(name, species_input, species_output, ic, rate) {
   gates <- list()
 
+  # I_C (RC series) : i_c = C * dv_l/dt 
+
   l_dvp <- jn(name, 'l_dvp')
   l_dvn <- jn(name, 'l_dvn')
   
@@ -67,18 +69,17 @@ Make_Circuit_Capacitor <- function(name, species_input, species_output, ic, rate
   # ip = C dvp
   g_ip <- Make_Mul2In_Wang(jn(name, 'g_ip'),
     species_input$capacitance, l_dvp, species_output$current_positive,
-    ic$capacitance/2, 0,
+    ic$capacitance, 0,
     rate
   )
   gates[[length(gates)+1]] <- g_ip
-  
-  # in = C dvn
-  g_in <- Make_Mul2In_Wang(jn(name, 'g_in'),
-    species_input$capacitance, l_dvn, species_output$current_negative,
-    ic$capacitance/2, 0,
-    rate
-  )
-  gates[[length(gates)+1]] <- g_in
+      # in = C dvn
+      g_in <- Make_Mul2In_Wang(jn(name, 'g_in'),
+        species_input$capacitance, l_dvn, species_output$current_negative,
+        ic$capacitance, 0,
+        rate
+      )
+      gates[[length(gates)+1]] <- g_in
 
   # Q = \int i dt
   l_pcharge <- jn(name, 'l_pcharge')
@@ -96,7 +97,7 @@ Make_Circuit_Capacitor <- function(name, species_input, species_output, ic, rate
       l_vp = jn(name, 'l_vp')
       g_vp <- Make_Mul2In_Wang(jn(name, 'g_vp'),
         jn(name,'_1oC'), l_pcharge, species_output$voltage_positive,
-        1/ic$capacitance*2, 0,
+        1/ic$capacitance, 0,
         rate
       )
       gates[[length(gates)+1]] <- g_vp
@@ -113,7 +114,7 @@ Make_Circuit_Capacitor <- function(name, species_input, species_output, ic, rate
       l_vn = jn(name, 'l_vp')
       g_vn <- Make_Mul2In_Wang(jn(name, 'g_vn'),
         jn(name,'_1oC'), l_ncharge, species_output$voltage_negative,
-        1/ic$capacitance*2, 0,
+        1/ic$capacitance, 0,
         rate
       )
       gates[[length(gates)+1]] <- g_vn
@@ -131,84 +132,250 @@ Make_Circuit_Capacitor <- function(name, species_input, species_output, ic, rate
 
 Make_Circuit_Inductor <- function(name, species_input, species_output, ic, rate) {
   gates <- list()
-  
-  # Compute derivative of current: di/dt
-  l_dip <- jn(name, 'l_dip')
-  l_din <- jn(name, 'l_din')
-  
-  g_i_derivative <- Make_Derivative(
-    jn(name, 'g_di_in'),
-    species_input$current_positive, species_input$current_negative,
-    l_dip, l_din,
-    ic$current_positive, ic$current_negative,
-    rate
-  )
-  gates[[length(gates)+1]] <- g_i_derivative
-  
-  # Compute voltage: v = L * di/dt
-  g_vp <- Make_Mul2In_Wang(
-    jn(name, 'g_vp'),
-    species_input$inductance, l_dip, species_output$voltage_positive,
-    ic$inductance/2, 0,
-    rate
-  )
-  gates[[length(gates)+1]] <- g_vp
-  
-  g_vn <- Make_Mul2In_Wang(
-    jn(name, 'g_vn'),
-    species_input$inductance, l_din, species_output$voltage_negative,
-    ic$inductance/2, 0,
-    rate
-  )
-  gates[[length(gates)+1]] <- g_vn
-  
-  # Integrate voltage to obtain magnetic flux: F = int v dt
-  l_pflux <- jn(name, 'l_pflux')
-  l_nflux <- jn(name, 'l_nflux')
-  g_flux_integrator <- Make_Integrator_OishiYordanov(
+
+  l_vep <- jn(name, '_l_vep')
+  l_ven <- jn(name, '_l_ven')
+
+  # Integrate Current input voltage to Equivalent tension from Current Source
+  g_ve_integrator <- Make_Integrator_OishiYordanov(
     jn(name, '_g_i_int'), 
-    species_output$voltage_positive, species_output$voltage_negative,
-    l_pflux, l_nflux,
-    0, 0,   # initial flux values; adjust if needed
+    species_input$current_positive, species_input$current_negative,
+    l_vep, l_ven,
+    0, 0,
     rate
   )
-  gates[[length(gates)+1]] <- g_flux_integrator
-  
-      # Recover the current from the flux: i = (1/L)*F
-      g_ip <- Make_Mul2In_Wang(
-        jn(name, 'g_ip'),
-        jn(name, '_1oL'), l_pflux, species_output$current_positive,
-        2/ic$inductance, 0,
+  gates[[length(gates)+1]] <- g_ve_integrator
+
+  # Computer current in the resistor 
+  # i_r = 1/R v_e  
+  g_pir <- Make_Mul2In_Wang(
+    jn(name, 'g_pir'),
+    'res',  l_vep, 
+    species_output$current_positive_resistor,
+    ic$inductance, 0,
+    rate
+  )
+  gates[[length(gates)+1]] <- g_pir
+      g_nir <- Make_Mul2In_Wang(
+        jn(name, 'g_nir'),
+        'res',  l_ven, 
+        species_output$current_negative_resistor,
+        ic$inductance, 0,
         rate
       )
-      gates[[length(gates)+1]] <- g_ip
-      
-      g_in <- Make_Mul2In_Wang(
-        jn(name, 'g_in'),
-        jn(name, '_1oL'), l_nflux, species_output$current_negative,
-        2/ic$inductance, 0,
+      gates[[length(gates)+1]] <- g_nir
+
+  # Derivate the voltage in the inductor
+  g_dv_in <- Make_Derivative(
+    jn(name, 'g_dv_in'),
+    l_vep, l_ven,
+    species_output$voltage_positive, species_output$voltage_negative,
+    0, 0,
+    rate
+  )
+  gates[[length(gates)+1]] <- g_dv_in
+
+  # Computer current in the inductor
+  g_pil <- Make_Mul2In_Wang(
+    jn(name, 'g_pil'),
+    species_input$inductance, species_output$voltage_positive, species_output$current_positive_inductor,
+    1/ic$inductance, 0,
+    rate
+  )
+  gates[[length(gates)+1]] <- g_pil
+      g_nil <- Make_Mul2In_Wang(
+        jn(name, 'g_nil'),
+        species_input$inductance, species_output$voltage_negative, species_output$current_negative_inductor,
+        1/ic$inductance, 0,
         rate
       )
-      gates[[length(gates)+1]] <- g_in
+      gates[[length(gates)+1]] <- g_nil
+
+  # Compute Equivalent Voltage  at the Inductor Terminal from Current Source 
+
+  # V_L (RL series) : v_l = L * di/dt, i = 1/L \int v_l dt or i = V_L / R 
+
+  # V_L = V_E (RL parallel) : v_e = R * i_R (by resistor), v_e = L * i_L/dt (by inductor), i_l = 1/L \int V_E dt
+
+  # Compute Flux in Inductor
+  # F = \int V_E dt
+
+  # Exract Current through Inductor from Flux
+  # i_l = 1/L * F 
   
+  # Compute voltage: v = R * di/dt
+  
+  # Recover the current from the flux: i = (1/L)*F
+
   return(gates)
 }
 
-# Make_Circuit_RLC_blocks <- function(name, species_input, species_output, ic, rate) {
-#   # v -1/L-> s1 -\int-> x_1 - 
-# }
-
-
-Make_Wire <- function(name, li_input1, lo_output1, ic_value){
-  rate <- 2e3
+Make_Circuit_RLC <- function(name, species_input, species_output, ic, rate, fuel) {
   gates <- list()
-  g1 <- Make_Mul2In_Wang(jn(name, 'wire1'),
-    li_input1, jn(li_input1,'_'), lo_output1,
-    ic_value, 1,
+
+  l_1ol <- jn(name, 'l_1ol')
+  l_g1_p <- jn(name, 'l_g1_p')
+  g1_p <- Make_Mul2In_Wang(jn(name, 'g1_p'),
+    species_input$voltage_positive, l_1ol, l_g1_p,
+    0, 1/ic$inductance,
     rate
   )
-  gates[[1]] <- g1
-  return(gates)
+  gates[[length(gates)+1]] <- g1_p
+
+      l_g1_n <- jn(name, 'l_g1_n')
+      g1_n <- Make_Mul2In_Wang(jn(name, 'g1_n'),
+        species_input$voltage_negative, l_1ol, l_g1_n,
+        0, 1/ic$inductance,
+        rate
+      )
+      gates[[length(gates)+1]] <- g1_n
+
+  l_g2_carry1 <- jn(name, 'l_g2_carry1')
+  l_g2_carry2 <- jn(name, 'l_g2_carry2')
+  l_g2_p <- jn(name, 'l_g2_p')
+  l_g2_n <- jn(name, 'l_g2_n')
+  # v/l + (-r/l x1) + (-1/l x2)
+     # ap = [r/l x1n -> g4_n + vp/l -> g1_p] + 1/l x2n -> g7_n
+     # an = [r/l x1p -> g4_p + vn/l -> g1_n] + 1/l x2p -> g7_p
+  l_g4_n <- jn(name, 'l_g4_n')
+  l_g4_p <- jn(name, 'l_g4_p')
+  l_g7_p <- jn(name, 'l_g7_p')
+  l_g7_n <- jn(name, 'l_g7_n')
+
+  l_g4_pFIXED <- jn(name, 'l_g4_pFIXED')
+  l_g4_nFIXED <- jn(name, 'l_g4_nFIXED')
+  l_g7_pFIXED <- jn(name, 'l_g7_pFIXED')
+  l_g7_nFIXED <- jn(name, 'l_g7_nFIXED')
+  l_g1_pFIXED <- jn(name, 'l_g1_pFIXED')
+  l_g1_nFIXED <- jn(name, 'l_g1_nFIXED')
+
+  g2_0 <- Make_Sub2In_Wang(jn(name, 'g2_0'),
+    l_g4_n, l_g4_p, l_g4_nFIXED,
+    0, 0,
+    fuel, rate
+  ) 
+  gates[[length(gates)+1]] <- g2_0
+  g2_1 <- Make_Sub2In_Wang(jn(name, 'g2_1'),
+    l_g7_n, l_g7_p, l_g7_nFIXED,
+    0, 0,
+    fuel, rate
+  )
+  gates[[length(gates)+1]] <- g2_1
+  g2_2 <- Make_Sub2In_Wang(jn(name, 'g2_2'),
+    l_g1_n, l_g1_p, l_g1_nFIXED,
+    0, 0,
+    fuel, rate
+  )
+  gates[[length(gates)+1]] <- g2_2
+  g2_p <- Make_Adder2In_Wang(jn(name, 'g2_p'),
+    l_g4_n, l_g7_n, l_g2_carry1, # l_g4_nFIXED, l_g7_nFIXED, l_g2_carry1
+    0, 0,
+    fuel, rate
+  )
+  gates[[length(gates)+1]] <- g2_p
+
+        l_g2_p_ <- Make_Adder2In_Wang(jn(name, 'g2_p_'),
+          l_g2_carry1, l_g1_n, l_g2_p, # l_g2_carry1, l_g1_nFIXED, l_g2_p,
+          0, 0,
+          fuel, rate
+        )
+        gates[[length(gates)+1]] <- l_g2_p_
+  
+  g2_3 <- Make_Sub2In_Wang(jn(name, 'g2_3'),
+    l_g4_p, l_g4_n, l_g4_pFIXED,
+    0, 0,
+    fuel, rate
+  )
+  gates[[length(gates)+1]] <- g2_3
+  g2_4 <- Make_Sub2In_Wang(jn(name, 'g2_4'),
+    l_g7_p, l_g7_n, l_g7_pFIXED,
+    0, 0,
+    fuel, rate
+  )
+  gates[[length(gates)+1]] <- g2_4
+  g2_5 <- Make_Sub2In_Wang(jn(name, 'g2_5'),
+    l_g1_p, l_g1_n, l_g1_pFIXED,
+    0, 0,
+    fuel, rate
+  )
+  gates[[length(gates)+1]] <- g2_5
+  g2_n <- Make_Adder2In_Wang(jn(name, 'g2_n'),
+    l_g4_p, l_g7_p, l_g2_carry2, # l_g4_pFIXED, l_g7_pFIXED, l_g2_carry2,
+    0, 0,
+    fuel, rate
+  )
+  gates[[length(gates)+1]] <- g2_n
+
+        l_g2_n_ <- Make_Adder2In_Wang(jn(name, 'g2_n_'),
+          l_g2_carry2, l_g1_pFIXED, l_g2_n, # l_g2_carry2, l_g1_pFIXED, l_g2_n,
+          0, 0,
+          fuel, rate
+        )
+        gates[[length(gates)+1]] <- l_g2_n_
+
+  g3 <- Make_Integrator_OishiYordanov(
+    jn(name, 'g3'),
+    l_g2_p, l_g2_n,
+    species_output$current_positive, species_output$current_negative,
+    0, 0,
+    rate
+  )
+  gates[[length(gates)+1]] <- g3
+
+  g4_p <- Make_Mul2In_Wang(jn(name, 'g4_p'),
+    species_output$current_positive, jn(name, '_rol'), l_g4_p,
+    0, ic$resistance/ic$inductance,
+    rate
+  )
+  gates[[length(gates)+1]] <- g4_p
+
+      g4_n <- Make_Mul2In_Wang(jn(name, 'g4_n'),
+        species_output$current_negative, jn(name, '_rol'), l_g4_n,
+        0, ic$resistance/ic$inductance,
+        rate
+      )
+      gates[[length(gates)+1]] <- g4_n
+
+  l_g5_p <- jn(name, 'l_g5_p')
+  g5_p <- Make_Mul2In_Wang(jn(name, 'g5_p'),
+    species_output$current_positive, jn(name, '_1oc'), l_g5_p,
+    0, 1/ic$capacitance,
+    rate
+  )
+  gates[[length(gates)+1]] <- g5_p
+
+      l_g5_n <- jn(name, 'l_g5_n')
+      g5_n <- Make_Mul2In_Wang(jn(name, 'g5_n'),
+        species_output$current_negative, jn(name, '_1oc'), l_g5_n,
+        0, 1/ic$capacitance,
+        rate
+      )
+      gates[[length(gates)+1]] <- g5_n
+
+  g6 <- Make_Integrator_OishiYordanov(
+    jn(name, 'g6_p'),
+    l_g5_p, l_g5_n,
+    species_output$capacitor_voltage_positive, species_output$capacitor_voltage_negative,
+    0, 0,
+    rate
+  )
+  gates[[length(gates)+1]] <- g6
+
+  g7_p <- Make_Mul2In_Wang(jn(name, 'g7_p'),
+    species_output$capacitor_voltage_positive, jn(name, '_m1ol'), l_g7_p,
+    0, 1/ic$inductance,
+    rate
+  ) 
+  gates[[length(gates)+1]] <- g7_p
+
+      g7_n <- Make_Mul2In_Wang(jn(name, 'g7_n'),
+        species_output$capacitor_voltage_negative, jn(name, '_m1ol'), l_g7_n,
+        0, 1/ic$inductance,
+        rate
+      )
+      gates[[length(gates)+1]] <- g7_n
+
+  return (gates)
 }
 
 Make_Resistor <- function(name, species_input, species_output, ic) {
@@ -301,276 +468,6 @@ Make_Derivative <- function(name, nameInput1, nameInput2,
   return(derivative_gate)
 }
 
-Make_RLC_crn_simple <- function(
-    name, R, L, C,          
-    nameInputPos, nameInputNeg,      # vinp, vinn
-    # capacitor voltage outputs: v_C^+, v_C^-
-    # inductor current outputs: i_L^+, i_L^-
-    cinputPos, cinputNeg,            # initial conditions for the input species
-    rate) {
-
-  # Define dual–rail species: each circuit variable is split into a positive and negative rail.
-  species <- list(
-    # Dual–rail input for v_in:
-    input_pos    = nameInputPos,  # represents v_in^+
-    input_neg    = nameInputNeg,  # represents v_in^-
-    # Dual–rail state variables:
-    state1_pos   = jn(name, "_iL+"),  # inductor current positive rail (i_L^+)
-    state1_neg   = jn(name, "_iL-"),  # inductor current negative rail (i_L^-)
-    state2_pos   = jn(name, "_vC+"),  # capacitor voltage positive rail (v_C^+)
-    state2_neg   = jn(name, "_vC-")   # capacitor voltage negative rail (v_C^-)
-  )
-  ci <- c(cinputPos, cinputNeg, 0, 0, 0, 0)
-
-  reactions <- c(
-    # (1) Production of inductor current from input:
-    #    v_in^+ -> v_in^+ + i_L^+
-    jn(species$input_pos, " -> ", species$input_pos, " + ", species$state1_pos),
-    #    v_in^- -> v_in^- + i_L^-
-    jn(species$input_neg, " -> ", species$input_neg, " + ", species$state1_neg),
-    
-    # (2) Resistive decay of inductor current:
-    #    i_L^+ -> 0
-    jn(species$state1_pos, " -> 0"),
-    #    i_L^- -> 0
-    jn(species$state1_neg, " -> 0"),
-    
-    # (3) Coupling: capacitor voltage cancels inductor current.
-    #    For the positive rail, v_C^+ removes i_L^+:
-    jn(species$state2_pos, " + ", species$state1_pos," -> ",  species$state2_pos),
-    #    For the negative rail, v_C^- removes i_L^-:
-    jn(species$state2_neg, " + ", species$state1_neg," -> ",  species$state2_neg),
-    
-    # (4) Capacitor charging: inductor current produces capacitor voltage.
-    #    i_L^+ produces v_C^+
-    jn(species$state1_pos, " -> ", species$state1_pos, " + ", species$state2_pos),
-    #    i_L^- produces v_C^-
-    jn(species$state1_neg, " -> ", species$state1_neg, " + ", species$state2_neg),
-    
-    # (5) Annihilation (cancellation) reactions for state variables:
-    #    i_L^+ + i_L^- -> 0 (ensures net i_L = i_L^+ - i_L^-)
-    jn(species$state1_pos, " + ", species$state1_neg, " -> 0"),
-    #    v_C^+ + v_C^- -> 0 (ensures net v_C = v_C^+ - v_C^-)
-    jn(species$state2_pos, " + ", species$state2_neg, " -> 0")
-  )
-  
-  # Define rate constants for each group of reactions:
-  k_vin       <- (1 / L) * rate       # (1) Production of i_L from input
-  k_R         <- 0 # (R / L) * rate       # (2) Resistive decay of i_L
-  k_couple    <- (1 / L) * rate       # (3) Coupling: v_C cancels i_L
-  k_cap       <- (1 / C) * rate       # (4) Capacitor charging: i_L produces v_C
-  # Set an annihilation rate constant (should be high so that opposing rails cancel fast)
-  k_annihil_val <- rate         # (5) and (10) Cancellation reactions
-  
-  # Assemble the vector of rate constants in the same order as the reactions above:
-  ki <- c(
-    # (1) Production reactions:
-    k_vin, k_vin,
-    # (2) Resistive decay:
-    k_R, k_R,
-    # (3) Coupling reactions:
-    k_couple, k_couple,
-    # (4) Capacitor charging:
-    k_cap, k_cap,
-    # (5) Annihilation for state variables:
-    k_annihil_val, k_annihil_val
-  )
-  
-  dual_rail_circuit <- list(
-    name      = name,
-    species   = species,
-    reactions = reactions,
-    ci        = ci,
-    ki        = ki
-  )
-  
-  return(dual_rail_circuit)
-}
-
-
-Make_RLC_crn <- function(
-    name, R, L, C,
-    nameInputPos, nameInputNeg,
-    nameOutput1Pos, nameOutput1Neg,  # capacitor voltage outputs: v_C^+, v_C^-
-    nameOutput2Pos, nameOutput2Neg,  # inductor current outputs: i_L^+, i_L^-
-    nameOutput3Pos, nameOutput3Neg,  # capacitor current outputs: i_C^+, i_C^-
-    nameOutput4Pos, nameOutput4Neg,  # inductor voltage outputs: v_L^+, v_L^-
-    cinputPos, cinputNeg,           # initial conditions for the input species
-    rate) {
-
-
-# e1_gates <- Make_Circuit_RLC_dualRail(
-# 'rlc',
-# 10, 17, 13,
-# 'vin', 'zero',
-# 'vCp', 'vCn',
-# 'iLp', 'iLn',
-# 'iCp', 'iCn',
-# 'vLp', 'vLn',
-# 15, 5,
-# 1 # rate
-# )
-
-  # Define dual–rail species: each circuit variable is split into a positive and negative rail.
-  species <- list(
-    # Dual–rail input for v_in:
-    input_pos    = nameInputPos,  # represents v_in^+
-    input_neg    = nameInputNeg,  # represents v_in^-
-    # Dual–rail state variables:
-    state1_pos   = jn(name, "_iL+"),  # inductor current positive rail (i_L^+)
-    state1_neg   = jn(name, "_iL-"),  # inductor current negative rail (i_L^-)
-    state2_pos   = jn(name, "_vC+"),  # capacitor voltage positive rail (v_C^+)
-    state2_neg   = jn(name, "_vC-"),  # capacitor voltage negative rail (v_C^-)
-    # Dual–rail outputs:
-    output1_pos  = nameOutput1Pos,    # output for v_C^+
-    output1_neg  = nameOutput1Neg,    # output for v_C^-
-    output2_pos  = nameOutput2Pos,    # output for i_L^+
-    output2_neg  = nameOutput2Neg,    # output for i_L^-
-    output3_pos  = nameOutput3Pos,    # output for i_C^+
-    output3_neg  = nameOutput3Neg,    # output for i_C^-
-    output4_pos  = nameOutput4Pos,    # output for v_L^+
-    output4_neg  = nameOutput4Neg,    # output for v_L^-
-    # Dummy and intermediate species for catalytic reactions:
-    dummy_pos    = jn(name, "_dummy+"),
-    dummy_neg    = jn(name, "_dummy-"),
-    intermedA_pos = jn(name, "_A+"),
-    intermedA_neg = jn(name, "_A-")
-  )
-
-  # Initial concentrations: first two for input; all others start at zero.
-  ci <- c(cinputPos, cinputNeg, rep(0, 16))
-  
-  # Build the reaction network.
-  # Note: In each reaction the net effect on the dual–rail variable is given by the difference
-  # between the positive and negative rails.
-  reactions <- c(
-    # (1) Production of inductor current from input:
-    #    v_in^+ -> v_in^+ + i_L^+
-    jn(species$input_pos, " -> ", species$input_pos, " + ", species$state1_pos),
-    #    v_in^- -> v_in^- + i_L^-
-    jn(species$input_neg, " -> ", species$input_neg, " + ", species$state1_neg),
-    
-    # (2) Resistive decay of inductor current:
-    #    i_L^+ -> 0
-    jn(species$state1_pos, " -> 0"),
-    #    i_L^- -> 0
-    jn(species$state1_neg, " -> 0"),
-    
-    # (3) Coupling: capacitor voltage cancels inductor current.
-    #    For the positive rail, v_C^+ removes i_L^+:
-    jn(species$state2_pos, " -> ", species$state2_pos, " + ", species$state1_neg),
-    #    For the negative rail, v_C^- removes i_L^-:
-    jn(species$state2_neg, " -> ", species$state2_neg,  " + ", species$state1_pos),
-    
-    # (4) Capacitor charging: inductor current produces capacitor voltage.
-    #    i_L^+ produces v_C^+
-    jn(species$state1_pos, " -> ", species$state1_pos, " + ", species$state2_pos),
-    #    i_L^- produces v_C^-
-    jn(species$state1_neg, " -> ", species$state1_neg, " + ", species$state2_neg),
-    
-    # (5) Annihilation (cancellation) reactions for state variables:
-    #    i_L^+ + i_L^- -> 0 (ensures net i_L = i_L^+ - i_L^-)
-    jn(species$state1_pos, " + ", species$state1_neg, " -> 0"),
-    #    v_C^+ + v_C^- -> 0 (ensures net v_C = v_C^+ - v_C^-)
-    jn(species$state2_pos, " + ", species$state2_neg, " -> 0"),
-    
-    # (6) Output mapping for capacitor voltage:
-    #    v_C^+ -> v_C^+ + y_1^+
-    jn(species$state2_pos, " -> ", species$state2_pos, " + ", species$output1_pos),
-    #    v_C^- -> v_C^- + y_1^-
-    jn(species$state2_neg, " -> ", species$state2_neg, " + ", species$output1_neg),
-    #    Clear the outputs:
-    jn(species$output1_pos, " -> 0"),
-    jn(species$output1_neg, " -> 0"),
-    
-    # (7) Output mapping for inductor current:
-    #    i_L^+ -> i_L^+ + y_2^+
-    jn(species$state1_pos, " -> ", species$state1_pos, " + ", species$output2_pos),
-    #    i_L^- -> i_L^- + y_2^-
-    jn(species$state1_neg, " -> ", species$state1_neg, " + ", species$output2_neg),
-    #    Clear the outputs:
-    jn(species$output2_pos, " -> 0"),
-    jn(species$output2_neg, " -> 0"),
-    
-    # (8) Catalytic generation of capacitor current:
-    #    For positive rail: dummy^+ + i_L^+ -> dummy^+ + A^+
-    jn(species$dummy_pos, " + ", species$state1_pos, " -> ", species$dummy_pos, " + ", species$intermedA_pos),
-    #    For negative rail: dummy^- + i_L^- -> dummy^- + A^-
-    jn(species$dummy_neg, " + ", species$state1_neg, " -> ", species$dummy_neg, " + ", species$intermedA_neg),
-    #    Convert intermediate to output (positive rail): A^+ -> i_L^+ + y_3^+
-    jn(species$intermedA_pos, " -> ", species$state1_pos, " + ", species$output3_pos),
-    #    Convert intermediate to output (negative rail): A^- -> i_L^- + y_3^-
-    jn(species$intermedA_neg, " -> ", species$state1_neg, " + ", species$output3_neg),
-    #    Clear capacitor current outputs:
-    jn(species$output3_pos, " -> 0"),
-    jn(species$output3_neg, " -> 0"),
-    
-    # (9) Proxy for inductor voltage (copy capacitor voltage to output):
-    #    v_C^+ -> v_C^+ + y_4^+
-    jn(species$state2_pos, " -> ", species$state2_pos, " + ", species$output4_pos),
-    #    v_C^- -> v_C^- + y_4^-
-    jn(species$state2_neg, " -> ", species$state2_neg, " + ", species$output4_neg),
-    #    Clear the outputs:
-    jn(species$output4_pos, " -> 0"),
-    jn(species$output4_neg, " -> 0"),
-    
-    # (10) Cancellation reactions for output species (optional but helps maintain net differences):
-    jn(species$output1_pos, " + ", species$output1_neg, " -> 0"),  # cancel v_C outputs
-    jn(species$output2_pos, " + ", species$output2_neg, " -> 0"),  # cancel i_L outputs
-    jn(species$output3_pos, " + ", species$output3_neg, " -> 0"),  # cancel i_C outputs
-    jn(species$output4_pos, " + ", species$output4_neg, " -> 0")   # cancel v_L outputs
-  )
-  
-  # Define rate constants for each group of reactions:
-  k_vin       <- (1 / L) * rate       # (1) Production of i_L from input
-  k_R         <- 0 # (R / L) * rate       # (2) Resistive decay of i_L
-  k_couple    <- (1 / L) * rate       # (3) Coupling: v_C cancels i_L
-  k_cap       <- (1 / C) * rate       # (4) Capacitor charging: i_L produces v_C
-  k_copy      <- rate                 # (6), (7), (9) For copying outputs
-  k_clear     <- rate * 5             # (6), (7), (9) For clearing outputs
-  k_cat       <- (1 / C) * rate       # (8) Catalytic generation (first step)
-  k_cat2      <- (1 / C) * rate       # (8) Catalytic conversion (second step)
-  k_cat_clear <- k_cat * 5            # (8) For clearing catalytic outputs
-  # Set an annihilation rate constant (should be high so that opposing rails cancel fast)
-  k_annihil_val <- 0 # 100 * rate         # (5) and (10) Cancellation reactions
-  
-  # Assemble the vector of rate constants in the same order as the reactions above:
-  ki <- c(
-    # (1) Production reactions:
-    k_vin, k_vin,
-    # (2) Resistive decay:
-    k_R, k_R,
-    # (3) Coupling reactions:
-    k_couple, k_couple,
-    # (4) Capacitor charging:
-    k_cap, k_cap,
-    # (5) Annihilation for state variables:
-    k_annihil_val, k_annihil_val,
-    # (6) Output mapping for capacitor voltage:
-    k_copy, k_copy, k_clear, k_clear,
-    # (7) Output mapping for inductor current:
-    k_copy, k_copy, k_clear, k_clear,
-    # (8) Catalytic generation of capacitor current:
-    k_cat, k_cat, k_cat2, k_cat2, k_cat_clear, k_cat_clear,
-    # (9) Proxy for inductor voltage:
-    k_copy, k_copy, k_clear, k_clear,
-    # (10) Cancellation for output species:
-    k_annihil_val, k_annihil_val, k_annihil_val, k_annihil_val
-  )
-  
-  dual_rail_circuit <- list(
-    name      = name,
-    species   = species,
-    reactions = reactions,
-    ci        = ci,
-    ki        = ki
-  )
-  
-  return(dual_rail_circuit)
-}
-
-
-
 Make_VoltageSource_Component <- function(id, voltage) {
   vcc1 <- c()
   vcc1$name <- jn('v',id)
@@ -580,7 +477,6 @@ Make_VoltageSource_Component <- function(id, voltage) {
   vcc1$ic$current <- 0
   return(vcc1)
 }
-
 
 Make_CurrentSource_Component <- function(id, current) {
   drain <- c()
@@ -671,76 +567,50 @@ Make_Inductor_Component <- function(id, inductance) {
   l1$il$inductance <- jn(l1$name,'_ind')
   l1$ic$inductance <- inductance # henry
   # Dual rail species for charge, voltage, and current
-  l1$il$voltage_positive <- jn(l1$name,'il_vp')
-  l1$il$voltage_negative <- jn(l1$name,'il_vn')
   l1$il$current_positive <- jn(l1$name,'il_ip')
   l1$il$current_negative <- jn(l1$name,'il_in')
+
   l1$ol$voltage_positive <- jn(l1$name,'ol_vp')
   l1$ol$voltage_negative <- jn(l1$name,'ol_vn')
   l1$ol$current_positive <- jn(l1$name,'ol_ip')
   l1$ol$current_negative <- jn(l1$name,'ol_in')
-  l1$ic$voltage_positive <- 0
-  l1$ic$voltage_negative <- 0
+
   l1$ic$current_positive <- 0
   l1$ic$current_negative <- 0
-      # Positive Representation  
-      # c1$il$charge <- 'c1il_charge'
-      # c1$il$voltage_positive <- 'c1il_voltage'
-      # c1$il$voltage_negative <- 'c1il_voltage'
-      # c1$il$current <- 'c1il_current'
 
-      # c1$ol$charge <- 'c1ol_charge'
-      # c1$ol$voltage <- 'c1ol_voltage'
-      # c1$ol$current <- 'c1ol_current'
+  # l1$ol$current_positive_inductor <- jn(l1$name,'ol_pil')
+  # l1$ol$current_negative_inductor <- jn(l1$name,'ol_nil')
+  # l1$ol$current_positive_resistor <- jn(l1$name,'ol_pir')
+  # l1$ol$current_negative_resistor <- jn(l1$name,'ol_nir')
+  # l1$ic$current_positive_inductor <- 0
+  # l1$ic$current_negative_inductor <- 0
+  # l1$ic$current_positive_resistor <- 0
+  # l1$ic$current_negative_resistor <- 0
 
-      # c1$ic$charge <- 50
-      # c1$ic$voltage <- vcc1$ic$voltage
-      # c1$ic$current <- vcc1$ic$current
   return(l1)
 }
 
-Make_RLC_Component_dualRail <- function(id, R, L, C, init_ip, init_in, init_vCp, init_vCn) {
-  rlc <- list()
-  
-  # (1) Unique name for the component.
-  rlc$name <- jn("rlc", id)
-  
-  # (2) Input structure: dual–rail voltage input.
-  rlc$input <- list(
-    v_inp = jn(rlc$name, "_vinp"),  # positive rail for input voltage
-    v_inn = jn(rlc$name, "_vinn")   # negative rail for input voltage
-  )
-  
-  # (3) State variables: dual–rail representation of inductor current and capacitor voltage.
-  #     The net current: i_L = ip - in, and the net capacitor voltage: v_C = vCp - vCn.
-  rlc$st <- list(
-    ipos  = jn(rlc$name, "_ip"),    # positive rail for inductor current
-    ineg  = jn(rlc$name, "_in"),    # negative rail for inductor current
-    vCp = jn(rlc$name, "_vCp"),   # positive rail for capacitor voltage
-    vCn = jn(rlc$name, "_vCn")    # negative rail for capacitor voltage
-  )
-  
-  # (4) Output variables: dual–rail outputs for resistor voltage and inductor voltage.
-  #     Resistor voltage is computed as v_R = R * i_L, and inductor voltage as v_L = L * d(i_L)/dt.
-  rlc$out <- list(
-    vRp = jn(rlc$name, "_vRp"),  # resistor voltage positive rail
-    vRn = jn(rlc$name, "_vRn"),  # resistor voltage negative rail
-    vLp = jn(rlc$name, "_vLp"),  # inductor voltage positive rail
-    vLn = jn(rlc$name, "_vLn")   # inductor voltage negative rail
-  )
-  
-  # (5) Initial conditions for the state variables.
-  rlc$ic <- list(
-    ipos  = init_ip,    # initial positive component of current
-    ineg  = init_in,    # initial negative component of current
-    vCp = init_vCp,   # initial positive capacitor voltage
-    vCn = init_vCn    # initial negative capacitor voltage
-  )
-  
-  # (6) Store circuit parameters.
-  rlc$params <- list(R = R, L = L, C = C)
-  
+Make_RLC_Component <- function(resistance, inductance, capacitance) {
+  rlc <- c()
+  # Dual rail species for voltages, and current
+
+  rlc$name <- jn('rlc')
+  rlc$il$resistance <- jn(rlc$name,'_red')
+  rlc$ic$resistance <- resistance 
+  rlc$il$inductance <- jn(rlc$name,'_ind')
+  rlc$ic$inductance <- inductance 
+  rlc$il$capacitance <- jn(rlc$name,'_cap')
+  rlc$ic$capacitance <- capacitance
+
+  rlc$il$voltage_positive <- jn(rlc$name,'il_vp')
+  rlc$ic$voltage_positive <- 0
+  rlc$il$voltage_negative <- jn(rlc$name,'il_vn')
+  rlc$ic$voltage_negative <- 0
+
+  rlc$ol$capacitor_voltage_positive <- jn(rlc$name,'ol_vcp')
+  rlc$ol$capacitor_voltage_negative <- jn(rlc$name,'ol_vcn')
+  rlc$ol$current_positive <- jn(rlc$name,'ol_ip')
+  rlc$ol$current_negative <- jn(rlc$name,'ol_in')
+
   return(rlc)
 }
-
-
