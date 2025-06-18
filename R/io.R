@@ -130,8 +130,9 @@ fte_theme <- function() {
 
 plot_behavior <- function(
     behavior,
-    chart_title="test",
+    chart_title = "test",
     species = NULL,
+    species_dotted = NULL,
     x_label = 'Time',
     y_label = 'Concentration',
     legend_name = 'Species',
@@ -145,79 +146,81 @@ plot_behavior <- function(
     variable_point_type = FALSE,
     line_types = NULL
 ) {
-    # Returns the geom function given a keyword
-    geom <- function(keyword) {
-        switch (keyword,
-                'line' = ggplot2::geom_line(size = 1.3),
-                'point' = ggplot2::geom_point(size = 2.3),
-                stop(paste('\'', keyword, '\' is not a valid geometry'))
+
+    print(species)
+    print(species_dotted)
+
+    geom <- function(keyword, linetype = "solid") {
+        switch(keyword,
+               'line' = ggplot2::geom_line(size = 1.3, linetype = linetype),
+               'point' = ggplot2::geom_point(size = 2.3),
+               stop(paste0("'", keyword, "' is not a valid geometry"))
         )
     }
-
-    # If no species was specified, pick all of them.
-    if(is.null(species)) {
-        species <- names(behavior)[2:dim(behavior)[2]]
+    if (is.null(species) && is.null(species_dotted)) {
+        species <- names(behavior)[names(behavior) != "time"]
     }
-
-    for (specie in species) {
+    all_species <- unique(c(species, species_dotted))
+    for (specie in all_species) {
         if (!(specie %in% colnames(behavior))) {
-            stop(paste('The specie ', specie, ' is not in the behavior data frame.'))
+            stop(paste("The specie", specie, "is not in the behavior data frame."))
         }
     }
 
-    # Convert the data frame to the proper format
-    df <- behavior[,c('time', species)]
-    dfm <- reshape2::melt(df, id.vars = 'time')
-
-    # Create the plot
-    g <- ggplot2::ggplot(dfm, ggplot2::aes(
-        time, value, color = variable
-    )) +
+    g <- ggplot2::ggplot() +
         ggplot2::theme_minimal(base_size = 18) +
         ggplot2::labs(x = x_label, y = y_label, color = legend_name) +
-        ggplot2::scale_color_brewer(palette="Dark2") +
+        ggplot2::scale_color_brewer(palette = "Dark2") +
         ggplot2::ggtitle(chart_title)
 
-    for(geometric in geom_list) {
-        g <- g + geom(geometric)
-    }
-    if(!show_legend) {
-        g <- g + ggplot2::guides(color = FALSE)
-    }
-    if(y_origin_0) {
-        g <- g + ggplot2::expand_limits(y = 0)
-    }
-    if(!show_x_label_name) {
-        g <- g + ggplot2::theme(axis.title.x = ggplot2::element_blank())
-    }
-    if(!show_y_label_name) {
-        g <- g + ggplot2::theme(axis.title.y = ggplot2::element_blank())
-    }
-    if(variable_line_type) {
-        g <- g +
-            ggplot2::aes(linetype = variable) +
-            ggplot2::labs(linetype = legend_name)
-    }
-    if(variable_point_type) {
-        g <- g +
-            ggplot2::aes(shape = variable) +
-            ggplot2::labs(shape = legend_name)
-    }
-    if(!is.null(line_types)) {
-        g <- g +
-            ggplot2::scale_linetype_manual(values = line_types) +
-            ggplot2::aes(linetype = variable) +
-            ggplot2::labs(linetype = legend_name)
+    # Solid lines
+    if (!is.null(species)) {
+        df_solid <- behavior[, c("time", species), drop = FALSE]
+        dfm_solid <- reshape2::melt(df_solid, id.vars = "time")
+        g <- g + ggplot2::geom_line(
+            data = dfm_solid,
+            ggplot2::aes(x = time, y = value, color = variable),
+            size = 1.3,
+            linetype = "solid"
+        )
     }
 
-    # if a name file was specified, save the plot there.
-    if(!is.null(save_file_name)) {
+    # Dotted/dashed lines
+    if (!is.null(species_dotted)) {
+        df_dotted <- behavior[, c("time", species_dotted), drop = FALSE]
+        dfm_dotted <- reshape2::melt(df_dotted, id.vars = "time")
+        g <- g + ggplot2::geom_line(
+            data = dfm_dotted,
+            ggplot2::aes(x = time, y = value, color = variable),
+            size = 1.3,
+            linetype = "dotted"
+        )
+    }
+
+    if (!show_legend) {
+        g <- g + ggplot2::guides(color = FALSE)
+    }
+
+    if (y_origin_0) {
+        g <- g + ggplot2::expand_limits(y = 0)
+    }
+
+    if (!show_x_label_name) {
+        g <- g + ggplot2::theme(axis.title.x = ggplot2::element_blank())
+    }
+
+    if (!show_y_label_name) {
+        g <- g + ggplot2::theme(axis.title.y = ggplot2::element_blank())
+    }
+
+    if (!is.null(save_file_name)) {
         ggplot2::ggsave(save_file_name, dpi = 300, width = 6, height = 4.5)
     }
 
-    # Return the plot object
     return(g)
 }
+
+
 
 # species = c(circuito$gates[[numero]]$species$input1,
 #                                             circuito$gates[[numero]]$species$input2,

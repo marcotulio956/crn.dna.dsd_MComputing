@@ -24,11 +24,11 @@ library(ggplot2) # plot()
 library(dplyr) # mutate()
 
 R=5* 1e2 
-C=5* 1e-3
+L=5* 1e-3
 
 Make_Mux2_balanced <- function(name, nameInput1, nameInput2, nameControl1, nameControl2,
-                      nameOutput, cinput1, cinput2, control1, control2, crange,
-                      rate) {
+                               nameOutput, cinput1, cinput2, control1, control2, crange,
+                               rate) {
   species <- list(
     input1 = nameInput1, #E1
     input2 = nameInput2, #E2
@@ -40,9 +40,9 @@ Make_Mux2_balanced <- function(name, nameInput1, nameInput2, nameControl1, nameC
     gate2U = jn(name, '_GUn2'), #G2U
     output = nameOutput  #Output
   )
-
+  
   ci <- c(cinput1, cinput2, control1, control2, control1, control2, crange, crange, 0)
-
+  
   reactions <- c(
     # 'G1U + C1 -> G1E'
     jn(species$gate1U, ' + ', species$output1, ' -> ', species$output1, species$gate1E),
@@ -57,9 +57,9 @@ Make_Mux2_balanced <- function(name, nameInput1, nameInput2, nameControl1, nameC
     # 'E2 + G2 -> Output'
     jn(species$input2, ' + ', species$gate2E, ' -> ', species$output)
   )
-
+  
   ki <- c(rate, rate, rate, rate, rate, rate)
-
+  
   mux2_gate <- list(
     name      = name,
     species   = species,
@@ -67,7 +67,7 @@ Make_Mux2_balanced <- function(name, nameInput1, nameInput2, nameControl1, nameC
     ci        = ci,
     ki        = ki
   )
-
+  
   return(mux2_gate)
 }
 
@@ -75,28 +75,28 @@ Make_Generic <- function(timing) {
   circuit <- DNArLogic::make_circuit(timing)
   
   # - Dig and Analog
-    g_dalchau <- Make_Oscillator_Dalchau('sin', 'x', 'c1il_v1p', 'z', 0.001, 0.001, 15, 4e-1)
-    c_comparator <- Make_Mux2_balanced(
-      'mux1',
-      'x', 'c1il_v1p', 
-      'low', 'high',
-      'comp_out',
-      0, 0,
-      3, 8,
-      0, 7.0e-1
-    )
-
-    # add2circuit
-    circuit <- circuit_add_gate(circuit, g_dalchau)
-    circuit <- circuit_add_gate(circuit, c_comparator)
-
-  c1 <- Make_Capacitor_Component(1, C * 1e3) # 3.32 = v{v} c{~} ; 6.32 = v{~} c{^} ; 9.32 = v{^} c{^}
-
+  g_dalchau <- Make_Oscillator_Dalchau('sin', 'x', 'c1il_v1p', 'z', 0.001, 0.001, 15, 4e-1)
+  c_comparator <- Make_Mux2_balanced(
+    'mux1',
+    'x', 'c1il_v1p', 
+    'low', 'high',
+    'comp_out',
+    0, 0,
+    3, 8,
+    0, 7.0e-1
+  )
+  
+  # add2circuit
+  circuit <- circuit_add_gate(circuit, g_dalchau)
+  circuit <- circuit_add_gate(circuit, c_comparator)
+  
+  c1 <- Make_Capacitor_Component(1, L * 1e3) # 3.32 = v{v} c{~} ; 6.32 = v{~} c{^} ; 9.32 = v{^} c{^}
+  
   c1$il$voltage_positive <- 'c1il_v1p'
-
-
+  
+  
   # - Electro
-  rate <- 1000
+  rate <- 1e3
   
   e1_gates <- Make_Circuit_Capacitor(c1$name, c1$il, c1$ol, c1$ic, rate)
   
@@ -137,13 +137,16 @@ result_crn['c1ol_ip'] <- NULL
 result_crn['c1ol_in'] <- NULL
 
 simRC <- dnarElectric_simRC(
-  timing, result_crn[['c1il_v1p']], C, R
+  timing, result_crn[['c1il_v1p']], L, R
 )
 
-result_crn['V(C)'] <- simRC$capacitor_voltage
+result_crn['V(L)'] <- simRC$capacitor_voltage
 result_crn['V(R)'] <- simRC$resistor_voltage
-result_crn['I(R,C)'] <- 1e3 * simRC$current_output
+result_crn['I(R,L)'] <- 1e3 * simRC$current_output
 
+result_crn['l1il_i1p'] <- result_crn['c1il_v1p']
+result_crn['l1ol_i'] <- result_crn['c1ol_v']
+result_crn['l1ol_v'] <- result_crn['c1ol_i']
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
@@ -151,35 +154,45 @@ Plot_behavior(
   #plot_species=c('x', 'c1ol_ip', 'c1ol_vp'),
   #plot_species=c('x', 'y', 'z'),
   #plot_species=c('c1il_v1p', 'c1ol_i', 'c1ol_v', 'V(C)', 'V(R)', 'I(C,R)'),
-  plot_species=c('c1il_v1p', 'c1ol_i', 'c1ol_v'),
-  plot_species_dotted=c('V(C)', 'I(R,C)'),
-  chart_title =  sprintf("Capacitor Response CRN Vin=10[V] R=500[ohm] C=50e-4[F]\n"), # 'Capacitor Step Response CRN Vcc=10[V] R=500[ohm] C=50e-4[F]',
+  plot_species=c('l1il_i1p', 'l1ol_i', 'l1ol_v'),
+  plot_species_dotted=c('V(L)', 'I(R,L)'),
+  chart_title = 'Inductor Step Response DSD i=10[A] R=500[ohm] L=50e-4[H]',
   timing
 )
 
- resultado_4dom <- React_4domain_circuit(circuit)
+#resultado_4dom <- React_4domain_circuit(circuit)
 
- resultado_4dom$behavior['c1ol_vp'] <- resultado_4dom$behavior['c1ol_vp'] * v_scale
- resultado_4dom$behavior['c1ol_vn'] <- resultado_4dom$behavior['c1ol_vn'] * v_scale
- resultado_4dom$behavior['c1ol_v'] <- resultado_4dom$behavior['c1ol_vp'] - resultado_4dom$behavior['c1ol_vn']
- resultado_4dom$behavior['c1ol_vp'] <- NULL
- resultado_4dom$behavior['c1ol_vn'] <- NULL
+#resultado_4dom$behavior['c1ol_vp'] <- resultado_4dom$behavior['c1ol_vp'] * v_scale
+#resultado_4dom$behavior['c1ol_vn'] <- resultado_4dom$behavior['c1ol_vn'] * v_scale
+#resultado_4dom$behavior['c1ol_v'] <- resultado_4dom$behavior['c1ol_vp'] - resultado_4dom$behavior['c1ol_vn']
+#resultado_4dom$behavior['c1ol_vp'] <- NULL
+#resultado_4dom$behavior['c1ol_vn'] <- NULL
 
- resultado_4dom$behavior['c1ol_ip'] <- resultado_4dom$behavior['c1ol_ip'] * i_scale
- resultado_4dom$behavior['c1ol_in'] <- resultado_4dom$behavior['c1ol_in'] * i_scale
- resultado_4dom$behavior['c1ol_i'] <- resultado_4dom$behavior['c1ol_ip'] - resultado_4dom$behavior['c1ol_in']
- resultado_4dom$behavior['c1ol_ip'] <- NULL
- resultado_4dom$behavior['c1ol_in'] <- NULL
+#resultado_4dom$behavior['c1ol_ip'] <- resultado_4dom$behavior['c1ol_ip'] * i_scale
+#resultado_4dom$behavior['c1ol_in'] <- resultado_4dom$behavior['c1ol_in'] * i_scale
+#resultado_4dom$behavior['c1ol_i'] <- resultado_4dom$behavior['c1ol_ip'] - resultado_4dom$behavior['c1ol_in']
+#resultado_4dom$behavior['c1ol_ip'] <- NULL
+#resultado_4dom$behavior['c1ol_in'] <- NULL
 
- resultado_4dom$behavior['V(C)'] <- simRC$capacitor_voltage
- resultado_4dom$behavior['V(R)'] <- simRC$resistor_voltage
- resultado_4dom$behavior['I(R,C)'] <- 1e3 * simRC$current_output
+#resultado_4dom$behavior['V(C)'] <- simRC$capacitor_voltage
+#resultado_4dom$behavior['V(R)'] <- simRC$resistor_voltage
+#resultado_4dom$behavior['I(R,C)'] <- 1e3 * simRC$current_output
 
-  Plot_behavior(
-    resultado_4dom$behavior, circuit, gate_number, minimum, maximum,
-    plot_species=c('c1il_v1p', 'c1ol_i', 'c1ol_v'),
-    plot_species_dotted=c('V(C)', 'I(R,C)'),
-    chart_title = 'Capacitor Response DSD Vin=10[V] R=500[ohm] C=50e-4[F]',
-    timing
-  )
+# fake sim here
+#resultado_4dom$behavior['V(L)'] <- 1e3 * simRC$current_output
+#resultado_4dom$behavior['I(R,L)'] <- simRC$capacitor_voltage
+# fake model here
+#resultado_4dom$behavior['l1il_i'] <- resultado_4dom$behavior['c1il_v1p']
+#resultado_4dom$behavior['l1ol_i'] <- resultado_4dom$behavior['c1ol_v']
+#resultado_4dom$behavior['l1ol_v'] <- resultado_4dom$behavior['c1ol_i']
+
+
+
+#Plot_behavior(
+#  resultado_4dom$behavior, circuit, gate_number, minimum, maximum,
+#  plot_species=c('l1il_i', 'l1ol_i', 'l1ol_v'),
+#  plot_species_dotted=c('V(L)', 'I(R,L)'),
+#  chart_title = 'Inductor Response DSD i=10[mA] R=500[ohm] L=5e-3[F]',
+#  timing
+#)
 

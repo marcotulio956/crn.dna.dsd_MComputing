@@ -140,8 +140,8 @@ react <- function(species, ci, reactions, ki, t, verbose = FALSE, ...) {
         dy <- Mt %*% v
 
         list(dy)
-
     }
+    
     result <- deSolve::ode(times = t, y = ci, func = fx, parms = NULL, ...)
     if(verbose) {
         print("= DESOLVE: ")

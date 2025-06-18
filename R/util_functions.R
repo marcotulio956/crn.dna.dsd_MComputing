@@ -27,7 +27,7 @@ React_4domain_circuit <- function(circuit) {
 
 Plot_behavior <- function(
   result, circuit, gate_numbers, min, max, 
-  plot_species=FALSE, chart_title="test",
+  plot_species=FALSE, plot_species_dotted=FALSE, chart_title="test",
   timing
 ) {
 
@@ -48,9 +48,9 @@ Plot_behavior <- function(
   }
 
   print("Species to plot:")
-  print(species_to_plot)
   g <- plot_behavior(result, 
                      species = species_to_plot,
+                     species_dotted = plot_species_dotted,
                      chart_title = chart_title, 
                      x_label     = 'Time (s)',
                      y_label     = 'Concentration (M)',
@@ -64,20 +64,6 @@ Plot_behavior <- function(
     g <- g + geom_hline(yintercept=min, linetype="dashed", color = "green", size=1)
     g <- g + geom_hline(yintercept=max, linetype="dashed", color = "red", size=1)
   }
-  
-  # if (add_capacitor) {
-  #   if (is.null(R) || is.null(C) || is.null(V_max)) {
-  #     stop("R, C, and V_max must be provided to add capacitor curves.")
-  #   }
-    
-  #   t <- result['time']
 
-  #   # Compute the charging and discharging curves
-  #   V_t_charging <- V_max * (1 - exp(-t / (R * C)))
-  #   V_t_discharging <- V_max * exp(-t / (R * C))
-    
-  #   g + ggplot(data.frame(x=c(0, 0.01)), aes(x)) + 
-  #     stat_function(fun=function(x) 10*(1-exp(-x/(R*C))))
-  # }
   print(g)
 }

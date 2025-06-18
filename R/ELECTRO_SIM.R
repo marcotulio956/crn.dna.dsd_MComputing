@@ -92,11 +92,18 @@ simulate_sRLC_voltage_source <- function(timing, source_voltage, resistance, ind
   
   x1[1] <- 0
   x2[1] <- 0
+
+  sum_dx1 <- numeric(n)
+  sum_dx2 <- numeric(n)
+  sum_dx1[1] <- 0
+  sum_dx2[1] <- 0
   
   for (i in 1:(n - 1)) {
     dt <- timing[i + 1] - timing[i]
     dx2_dt <-   (1 / capacitance) * x1[i]
     dx1_dt <- - (1 / inductance ) * x2[i] - (resistance / inductance) * x1[i] + (1 / inductance) * source_voltage[i]
+    sum_dx1[i + 1] <- sum_dx1[i] + dx1_dt
+    sum_dx2[i + 1] <- sum_dx2[i] + dx2_dt
     x1[i + 1] <- x1[i] + dt * dx1_dt
     x2[i + 1] <- x2[i] + dt * dx2_dt
   }
@@ -106,5 +113,48 @@ simulate_sRLC_voltage_source <- function(timing, source_voltage, resistance, ind
   
   return(list(capacitor_voltage = cap_voltage,
               inductor_current  = ind_current,
-              source_voltage    = source_voltage))
+              source_voltage    = source_voltage,
+              sum_dx1 = sum_dx1,
+              sum_dx2 = sum_dx2))
+}
+
+# -----------------------------------------------------------------------------
+# simulate_Vcc: gera PULSE(V1→V2) com delay, subida/queda, largura e período
+# -----------------------------------------------------------------------------
+simulate_Vcc <- function(t,
+                         V1  = 0,    # tensão inicial
+                         V2  = 10,   # tensão de pulso
+                         TD  = 10,   # atraso antes do primeiro pulso
+                         TR  = 0.001,# tempo de subida
+                         TF  = 0.001,# tempo de descida
+                         PW  = 20,   # largura do pulso em nível V2
+                         PER = 50    # período total
+) {
+  # t: vetor de tempos (mesmo que você usar em simulate_sRLC, etc.)
+  # Retorna vetor de mesmo comprimento com a tensão em cada instante
+  
+  # Função auxiliar: dado um único tempo ti, calcula V(ti)
+  pulse_at <- function(ti) {
+    if (ti < TD) {
+      return(V1)
+    }
+    tau <- (ti - TD) %% PER
+    # fase de subida
+    if (tau < TR) {
+      return(V1 + (V2 - V1) * (tau / TR))
+    }
+    # nível alto
+    if (tau < PW) {
+      return(V2)
+    }
+    # fase de descida
+    if (tau < PW + TF) {
+      return(V2 - (V2 - V1) * ((tau - PW) / TF))
+    }
+    # repouso nível baixo até o próximo período
+    V1
+  }
+  
+  # Gera vetor aplicando a função a cada tempo (vectorize)
+  vapply(t, pulse_at, numeric(1))
 }
