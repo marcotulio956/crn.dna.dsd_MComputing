@@ -24,11 +24,10 @@ library(ggplot2) # plot()
 library(dplyr) # mutate()
 
 t0 <- 0
-t1 <- 35
-npoints <- (t1 - t0) * 50
+t1 <- 40
+npoints <- (t1 - t0) * 100
 time_grid <- seq(t0, t1, length.out = npoints)
 
-v_target <- simulate_Vcc(time_grid)
 
 error_for_params <- function(p) {
   p1 <- p[1:4]
@@ -74,34 +73,34 @@ cat("=== Otimização Iniciada ===\n")
 
 init_p <- c(
   1e-3, 1e-3, 15, 4e-1,   # p1
-  0, 0, 3, 8, 0, 7e-1                  # p2
+  0, 0, 3.5, 8.5, 0, 6.75e-1                  # p2
 )
 
-cat("Guess:", init_p)
+#cat("Guess:", init_p)
 
-res <- optim(
-  par    = init_p,
-  fn     = error_for_params,
-  method = "L-BFGS-B",
-  lower  = c(0,0,0,0,   0,0,0,0,0,0),
-  upper  = c(10,10,20,1,  10,10,10,10,10,10),
-  control= list(trace = 1, maxit = 50)
-)
+#res <- optim(
+#  par    = init_p,
+#  fn     = error_for_params,
+#  method = "L-BFGS-B",
+#  lower  = c(0,0,0,0,   0,0,0,0,0,0),
+#  upper  = c(10,10,20,1,  10,10,10,10,10,10),
+#  control= list(trace = 1, maxit = 50)
+#)
 
-cat("=== Otimização concluída ===\n")
-cat("Parâmetros finais p1:", res$par[1:4], "\n")
-cat("Parâmetros finais p2:", res$par[5:10], "\n")
-cat("Erro final SSE =", res$value, "\n")
+#cat("=== Otimização concluída ===\n")
+#cat("Parâmetros finais p1:", res$par[1:4], "\n")
+#cat("Parâmetros finais p2:", res$par[5:10], "\n")
+#cat("Erro final SSE =", res$value, "\n")
 
 # ---------------------------------------------------------------------
 # 4) Visualizar o resultado com o p* encontrado
 # ---------------------------------------------------------------------
-p_opt <- res$par
+p_opt <- init_p # res$par
 df_opt <- React_circuit({
   circuit <- DNArLogic::make_circuit(time_grid)
   circuit <- circuit_add_gate(
     circuit,
-    Make_Oscillator_Dalchau('sin','x','v1p','z', p_opt[1],p_opt[2],p_opt[3],p_opt[4])
+    Make_Oscillator_Dalchau('sin','v2p','v1p','v3p', p_opt[1],p_opt[2],p_opt[3],p_opt[4])
   )
   circuit <- circuit_add_gate(
     circuit,
@@ -111,12 +110,19 @@ df_opt <- React_circuit({
   circuit
 })
 
-v_sim_opt <- df_opt[['v1p']]
+x1_sim_opt <- df_opt[['v1p']]
+x2_sim_opt <- df_opt[['v2p']]
+x3_sim_opt <- df_opt[['v3p']]
 
-plot(time_grid, v_target, type = "l", col = "blue", lwd=2,
-     xlab="Tempo", ylab="Tensão [V]",
-     main="Calibração de p1/p2: v1p vs. Pulse Target")
-lines(time_grid, v_sim_opt, col = "red", lwd=2, lty=2)
+v_target <- simulate_Vcc(time_grid)
+
+plot(time_grid, v_target, type = "l", col = "green", lwd=2, lty = 2,
+     xlab="Time (S)", ylab="Concentratin (M)",
+     main="Generating a Voltage Source for Step inputs DSD Target=10step(t-10)[V]", xlim=c(0,40), ylim=c(1,15))
+lines(time_grid, x1_sim_opt, col = "blue", lwd=3, lty=1)
+lines(time_grid, x2_sim_opt, col = "red", lwd=1, lty=1)
+lines(time_grid, x3_sim_opt, col = "yellow", lwd=1, lty=1)
+
 legend("bottomright",
-       legend=c("Target Pulse","v1p Simulado"),
-       col=c("blue","red"), lwd=2, lty=c(1,2))
+       legend=c("V(S)","v1p","v2p", "v3p"),
+       col=c("green","blue", 'red', 'yellow'), lwd=2, lty=c(2,1, 1, 1))

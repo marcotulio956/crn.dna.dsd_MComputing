@@ -17,6 +17,7 @@ source('R/io.R')
 source('R/neuron_hjelmfelt.R')
 source('R/parser.R')
 source('R/util_functions.R')
+source('R/metric_functions.R')
 
 jn <- function(...) { paste(..., sep = '') }
 
@@ -116,8 +117,8 @@ circuit <- Make_Generic(timing)
 result_crn <- React_circuit(circuit)
 
 expected_value = 10
-minimum = expected_value * 0.95
-maximum = expected_value * 1.05
+minimum = expected_value * 0.97
+maximum = expected_value * 1.03
 gate_number = 1
 
 result_crn['c1il_v1p'] <- result_crn['c1il_v1p']
@@ -136,13 +137,16 @@ result_crn['c1ol_i'] <- result_crn['c1ol_ip'] - result_crn['c1ol_in']
 result_crn['c1ol_ip'] <- NULL
 result_crn['c1ol_in'] <- NULL
 
-simRC <- dnarElectric_simRC(
-  timing, result_crn[['c1il_v1p']], L, R
+simRC <- simulate_sRC_voltage_source(
+  timing, result_crn[['c1il_v1p']], R, L
 )
 
-result_crn['V(L)'] <- simRC$capacitor_voltage
+simRL <- simulate_pRL_current_source(timing, result_crn[['c1il_v1p']], L, R)
+simRL2 <- simulate_sRL_voltage_source(timing, result_crn[['c1il_v1p']], L, R)
+
+result_crn['V(L)'] <- 1e3 * simRC$current_output
 result_crn['V(R)'] <- simRC$resistor_voltage
-result_crn['I(R,L)'] <- 1e3 * simRC$current_output
+result_crn['I(R,L)'] <- simRC$capacitor_voltage
 
 result_crn['l1il_i1p'] <- result_crn['c1il_v1p']
 result_crn['l1ol_i'] <- result_crn['c1ol_v']
@@ -159,6 +163,16 @@ Plot_behavior(
   chart_title = 'Inductor Step Response DSD i=10[A] R=500[ohm] L=50e-4[H]',
   timing
 )
+
+ind_model <- estimate_tau_inductor_current(timing, result_crn[['l1il_i1p']], result_crn[['l1ol_i']])
+cat("model: \n")
+print(ind_model)
+
+cap_sim <- estimate_tau_inductor_current(timing, result_crn[['l1il_i1p']],  simRC$current_output)
+cat("sim: \n")
+print(cap_sim)
+
+
 
 #resultado_4dom <- React_4domain_circuit(circuit)
 

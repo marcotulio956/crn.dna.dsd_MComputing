@@ -1,13 +1,13 @@
 LTspice 24.1.0 for Windows
 Circuit: C:\Users\Mark\Documents\MEGAsync\CEFET\tcc\dnar\spice\source_conversions.net
-Start Time: Fri Jun  6 21:22:58 2025
+Start Time: Fri Jul  4 17:53:06 2025
 solver = Normal
 Maximum thread count: 8
 tnom = 27
 temp = 27
 method = modified trap
 Direct Newton iteration for .op point succeeded.
-Total elapsed time: 7.001 seconds.
+Total elapsed time: 3.411 seconds.
 
 Files loaded:
 C:\Users\Mark\Documents\MEGAsync\CEFET\tcc\dnar\spice\source_conversions.net

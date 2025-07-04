@@ -31,32 +31,29 @@ L = 10
 Make_Generic <- function(timing) {
   circuit <- DNArLogic::make_circuit(timing)
   
-  g_dalchau <- Make_Oscillator_Dalchau('osc', 'y', 'z', 'l1il_i1p', 9, 8, 5, 10e-2)
+  g_dalchau <- Make_Oscillator_Dalchau('osc', 'y', 'z', 'l1il_v1p', 9, 8, 5, 10e-2)
   
-  l1 <- Make_Inductor_Component(1, L)
-
-  l1$il$current_positive <- 'l1il_i1p'
-  l1$ol$voltage_negative <- 'l1ol_vn'
-  l1$ic$current_positive <- 5
-  l1$ic$current_negative <- 0
+  # c1 <- Make_Capacitor_Component(1, L * 1e-2)
+  
+  
+  # c1$il$voltage_positive <- 'c1il_v1p'
   
   # # - Electro
-  rate <- 100
-  l1 <- Make_Circuit_Inductor(l1$name, l1$il, l1$ol, l1$ic, rate)
-
-  #l1 <- Make_Highpass_Cardelli(
-  #  'cardelliRC', 'l1il_v1p', 'l1il_vn',
-  #  'l1ol_vp', 'l1ol_vn',
-  #  'l1ol_ip', 'l1ol_in',
-  #  0, 0,
-  #  R, L, # r l
-  #  100
-  #)
+  # e1_gates <- Make_Circuit_Capacitor(c1$name, c1$il, c1$ol, c1$ic, 10000)
+  
+  l1 <- Make_Highpass_Cardelli(
+    'cardelliRC', 'l1il_v1p', 'l1il_vn',
+    'l1ol_vp', 'l1ol_vn',
+    'l1ol_ip', 'l1ol_in',
+    0, 0,
+    R, L, # r l
+    100
+  )
   
   # add2circuit
   circuit <- circuit_add_gate(circuit, g_dalchau)
-  #circuit <- circuit_add_gate(circuit, l1)
-  circuit <- circuit_add_electro_gates(circuit, l1)
+  circuit <- circuit_add_gate(circuit, l1)
+  # circuit <- circuit_add_electro_gates(circuit, e1_gates)
   
   return (circuit)
 }
@@ -73,31 +70,21 @@ minimum = expected_value * 0.95
 maximum = expected_value * 1.05
 gate_number = 1
 
-result_crn[['l1il_v1p']] <- result_crn[['l1il_i1p']]
-
 simRC <- simulate_sRC_voltage_source(
   timing, result_crn[['l1il_v1p']], R, L
 )
 
 simRL <- simulate_sRL_voltage_source(
-  timing, result_crn[['l1il_v1p']], R, L * 1e-2
+  timing, result_crn[['l1il_v1p']], R, L
 )
 
-simpRL <- simulate_pRL_current_source(
-  timing, result_crn[['l1il_v1p']], R, L * 1e-2
-)
-
-
-result_crn['l1ol_vout'] <- 1 * 1e-4 * ( result_crn['l1ol_ip'] -  result_crn['l1ol_in'] )
-result_crn['l1ol_iout'] <- 1 * 1e-5 * ( result_crn['l1ol_vp'] -  result_crn['l1ol_vn'] )
+result_crn['l1ol_iout'] <- 1 * ( result_crn['l1ol_ip'] -  result_crn['l1ol_in'] )
+result_crn['l1ol_vout'] <- 1 * ( result_crn['l1ol_vp'] -  result_crn['l1ol_vn'] )
 result_crn['l1il_v1p'] <- 1 * result_crn['l1il_v1p'] 
-result_crn['I(C)'] <- 1 * (simRC$capacitor_voltage)
+result_crn['I(L)'] <- 1 * (simRC$capacitor_voltage)
 result_crn['V(R)'] <- 0.1 * (simRC$current_output)
-result_crn['I(L)2'] <- 1e-1 * (simRL$inductor_current)
+result_crn['I(L)2'] <- 10 * (simRL$inductor_current)
 result_crn['V(L)2'] <- 1 * (simRL$inductor_voltage)
-result_crn['I(L)'] <- 1 * (simpRL$inductor_current)
-result_crn['V(R)'] <- 10 * (simpRL$inductor_voltage)
-
 
 
 #result_crn['l1il_v1p'] <- result_crn['c1il_v1p']
@@ -105,12 +92,13 @@ result_crn['V(R)'] <- 10 * (simpRL$inductor_voltage)
 #result_crn['l1ol_vout'] <- 1e-1 * result_crn['c1ol_iout']
 
 
+
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
   #plot_species=c('l1il_i1p', 'l1ol_ip', 'l1ol_vp', 'l1ol_in', 'l1ol_vn', 'l1ol_vout'),
-  plot_species=c('l1il_i1p', 'l1ol_vout', 'l1ol_iout'), #  'y', 'z'),
-  plot_species_dotted=c('I(L)', 'V(R)'), # 'I(C)', 'V(R)'
-  chart_title = 'Oscilator Inductor Current Lag DSD i=\'l1il_v1p\' R=0.1[ohm] L=0.1[H]',
+  plot_species=c('l1il_v1p', 'l1ol_vout', 'l1ol_iout'), #  'y', 'z'),
+  plot_species_dotted=c('I(L)', 'V(R)'), # 'I(L)2', 'V(L)2'),
+  chart_title = 'Oscilator Inductor Current Lag DSD i=\'l1il_v1p\' R=0.1[ohm] L=10[H]',
   timing
 )
 

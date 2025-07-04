@@ -1,0 +1,27 @@
+---
+config:
+  theme: redux
+  layout: dagre
+---
+flowchart LR
+    vin["$$v_{in}$$"] --> Mul1[["Mul1"]]
+    1ol["$$ 1/L $$"] --> Mul1
+    Mul1 -- $$\frac{1}{L}v_{in}$$ --> Add3{"Add3"}
+    Add3 -- "$$-\frac{R}{L} x_1 - \frac{1}{L}x_2 + \frac{1}{L}v_{in}$$" --> Int1[["Int1"]]
+    Int1 -- "$$\int -\frac{R}{L} x_1 - \frac{1}{L}x_2 + \frac{1}{L}v_{in}$$" --> X1["$$x_1:i$$"]
+    X1 --> Mul2[["Mul2"]] & Mul3[["Mul3"]]
+    mrol["$$ -R/L $$"] --> Mul2
+    Mul2 -- "$$-\frac{R}{L}x_1$$" --> Add3
+    ioc["$$ 1/C $$"] --> Mul3
+    Mul3 -- $$\frac{1}{C}i$$ --> Int2[["Int2"]]
+    Int2 -- $$\int \frac{1}{C} i$$ --> X2["$$x_2:v_c$$"]
+    X2 --> Mul4[["Mul4"]]
+    m1ol["$$ -1/L $$"] --> Mul4
+    Mul4 -- "$$\frac{-1}{L} v_c$$" --> Add3
+    vin@{ shape: lean-r}
+    1ol@{ shape: lean-r}
+    X1@{ shape: lean-l}
+    mrol@{ shape: lean-r}
+    ioc@{ shape: lean-r}
+    X2@{ shape: lean-l}
+    m1ol@{ shape: lean-r}

@@ -26,78 +26,34 @@ library(dplyr) # mutate()
 R = 1 # * 1e2
 L = 1 # * 1e-3
 
-Make_Mux2_balanced <- function(name, nameInput1, nameInput2, nameControl1, nameControl2,
-                      nameOutput, cinput1, cinput2, control1, control2, crange,
-                      rate) {
-  species <- list(
-    input1 = nameInput1, #E1
-    input2 = nameInput2, #E2
-    output1 = nameControl1,  #C1
-    output2 = nameControl2,  #C2
-    gate1E = jn(name, '_GEn1'), #G1E
-    gate2E = jn(name, '_GEn2'), #G2E
-    gate1U = jn(name, '_GUn1'), #G1U
-    gate2U = jn(name, '_GUn2'), #G2U
-    output = nameOutput  #Output
-  )
-
-  ci <- c(cinput1, cinput2, control1, control2, control1, control2, crange, crange, 0)
-
-  reactions <- c(
-    # 'G1U + C1 -> G1E'
-    jn(species$gate1U, ' + ', species$output1, ' -> ', species$output1, species$gate1E),
-    # 'G1E + C2 -> G1U'
-    jn(species$gate1E, ' + ', species$output2, ' -> ', species$output2, species$gate1U),
-    # 'G2U + C2 -> G2'
-    jn(species$gate2U, ' + ', species$output2, ' -> ', species$output2, species$gate2E),
-    # 'G2E + C1 -> G2U'
-    jn(species$gate2E, ' + ', species$output1, ' -> ', species$output1, species$gate2U),
-    # 'E1 + G1 -> Output'
-    jn(species$input1, ' + ', species$gate1E, ' -> ', species$output),
-    # 'E2 + G2 -> Output'
-    jn(species$input2, ' + ', species$gate2E, ' -> ', species$output)
-  )
-
-  ki <- c(rate, rate, rate, rate, rate, rate)
-
-  mux2_gate <- list(
-    name      = name,
-    species   = species,
-    reactions = reactions,
-    ci        = ci,
-    ki        = ki
-  )
-
-  return(mux2_gate)
-}
-
 Make_Generic <- function(timing) {
   circuit <- DNArLogic::make_circuit(timing)
   
   # - Dig and Analog
-    g_dalchau <- Make_Oscillator_Dalchau('sin', 'x', 'l1il_vp', 'z', 1e-3, 1e-3, 15, 4e-1)
-    c_comparator <- Make_Mux2_balanced(
-      'mux1',
-      'x', 'l1il_vp', 
-      'low', 'high',
-      'comp_out',
-      0, 0,
-      3, 8,
-      0, 7.0e-1
-    )
-
-    # add2circuit
-    circuit <- circuit_add_gate(circuit, g_dalchau)
-    circuit <- circuit_add_gate(circuit, c_comparator)
+  g_dalchau <- Make_Oscillator_Dalchau('sin', 'x', 'l1il_vp', 'z', 1e-3, 1e-3, 15, 4e-1)
+  c_comparator <- Make_Mux2_balanced(
+    'mux1',
+    'x', 'l1il_vp', 
+    'low', 'high',
+    'comp_out',
+    0, 0,
+    3, 8,
+    0, 7.0e-1
+  )
+  
+  # add2circuit
+  circuit <- circuit_add_gate(circuit, g_dalchau)
+  circuit <- circuit_add_gate(circuit, c_comparator)
   
   id <- 1
   modelL <- 1
-  l1 <- Make_Inductor_Component(1, modelL)
-
+  l1 <- Make_Inductor_Component(id, modelL)
+  
   l1$il$voltage_positive <- 'l1il_vp'
-
+  l1$ic$resistance <- R
+  
   print(l1)
-    
+  
   # - Electro
   rate <- 1000
   l1_gate <- Make_Circuit_Inductor_old(l1$name, l1$il, l1$ol, l1$ic, rate)
@@ -107,13 +63,13 @@ Make_Generic <- function(timing) {
   
   # add2circuit
   circuit <- circuit_add_electro_gates(circuit, l1_gate)
-
+  
   return (circuit)
 }
 
 t0 = 0
 t1 = 40
-points = (t1 - t0) * 100 # Using 50 time points
+points = (t1 - t0) * 50 # Using 50 time points
 timing  <- seq(t0, t1, length.out = points) # Using 50 time points
 circuit <- Make_Generic(timing)
 result_crn <- React_circuit(circuit)
@@ -144,7 +100,6 @@ gate_number = 1
 #result_crn['l1ol_v'] <- result_crn['l1ol_vp'] - result_crn['l1ol_vn']
 
 # inductor OLD outputs
-
 ol_v_scale <- 1e-8
 result_crn['l1ol_vp'] <- result_crn['l1ol_vp'] * ol_v_scale
 result_crn['l1ol_vn'] <- result_crn['l1ol_vn'] * ol_v_scale
@@ -201,8 +156,8 @@ result_crn['V(L2)_p3v'] <- p3_vs$vL2
 
 
 # shows final
-  result_crn['V(R)'] <- result_crn['V(R)_p3v']
-  result_crn['I(L2)'] <- result_crn['I(L2)_p3v']
+result_crn['V(R)'] <- result_crn['V(R)_p3v']
+result_crn['I(L2)'] <- result_crn['I(L2)_p3v']
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
@@ -211,16 +166,16 @@ Plot_behavior(
   # plot_species=c('I(S)_cs', 'I(L)_cs', 'V(L)_cs', 'V(R)_cs'), # show results 2
   plot_species=c('l1il_vp', 'l1ol_v', 'l1ol_i'), # 'l1il_vp', 'l1ol_v', 'l1ol_i'
   plot_species_dotted = c(#'I(L)_vs','V(L)_vs',
-                          #'I(L)_cs','V(L)_cs'#,
-                          #'I(L)_pv', #  works
-                          #'I(S)_sc', 'V(L)_sc' # works
-                          #'V(R2)_p2v'#  works
-                          # show  final
-                          # 'V(R)_p3v',  'I(L2)_p3v' # final works
-                          # show re name
-                          'V(R)',  'I(L2)'
-                          
-                          ), #  #  plot_species_dotted=c('I(L)_vs', 'V(R)_vs', 'V(L)_vs'), //  plot_species_dotted=c('I(L)_cs', 'V(R)_cs', 'V(L)_cs'),
+    #'I(L)_cs','V(L)_cs'#,
+    #'I(L)_pv', #  works
+    #'I(S)_sc', 'V(L)_sc' # works
+    #'V(R2)_p2v'#  works
+    # show  final
+    # 'V(R)_p3v',  'I(L2)_p3v' # final works
+    # show re name
+    'V(R)',  'I(L2)'
+    
+  ), #  #  plot_species_dotted=c('I(L)_vs', 'V(R)_vs', 'V(L)_vs'), //  plot_species_dotted=c('I(L)_cs', 'V(R)_cs', 'V(L)_cs'),
   chart_title = sprintf('Inductor Step Response DSD Vin=10[V] R=%s[ohm] L1,2=%s[H]', R, L),
   timing
 )

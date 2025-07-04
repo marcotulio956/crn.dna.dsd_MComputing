@@ -1,0 +1,44 @@
+* C:\Users\Mark\Documents\MEGAsync\CEFET\tcc\dnar\spice\source_conversions.asc
+L1 N002 0 1
+R1 N001 0 0.5
+I1 0 N001 PWL file=square_voltage_source_t40.csv
+L2 N005 0 5e-3
+R4 N004 N005 100
+R2 N003 0 500
+I2 0 N003 PWL file=square_l1il_i1p_conv_2_voltage_r500_t40.csv
+R3 N006 N007 100
+V2 N006 0 PWL file=square_voltage_source_t40.csv
+C2 N003 0 50e-4
+C1 N007 0 5e-3
+L3 N009 0 50e-4
+R5 N008 N009 500
+V3 N008 0 PWL file=square_voltage_source_t40.csv
+L4 N017 0 10
+R6 N016 0 0.5
+V4 N016 0 PWL file=square_voltage_source_t40.csv
+R_critical N013 N014 2
+L_ N014 N015 1
+C_ N015 0 1
+R_ud N018 N019 0.3
+V6 N010 0 PWL file=square_voltage_source_t40.csv
+L_1 N019 N020 0.5
+C_1 N020 0 2
+R_od N010 N011 2.5
+L_2 N011 N012 1
+C_2 N012 0 1
+V5 test 0 PULSE(0 10 10 0.001 0.001 20 50)
+V8 N018 0 PWL file=square_voltage_source_t40.csv
+V7 N013 0 PWL file=square_voltage_source_t40.csv
+I3 0 N004 PWL file=square_voltage_source_t40.csv
+L5 N022 0 10
+R7 N021 0 1
+I4 0 N021 PWL file=square_voltage_source_t40.csv
+R8 N022 N021 1
+R9 N002 N001 0.5
+R10 N017 N016 0.5
+.tran 40
+* PULSE(0 0.02 10 0.001 0.001 20 50)
+* PULSE(0 5000 10 0.001 0.001 20 50)
+* PWL file=square_voltage_source_t40.csv
+.backanno
+.end
