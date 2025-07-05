@@ -24,21 +24,37 @@ jn <- function(...) { paste(..., sep = '') }
 library(ggplot2) # plot()
 library(dplyr) # mutate()
 
-behaviours <- c(
-  overdamped = c(R = 2.5, L = 1, C = 1), 
-  critically_damped = c(R = 2, L = 1, C = 1),
-  underdamped = c(R = 1, L = 1.5, C = 1.5)
+behaviours <- list(
+  'Overdamped' = c(R = 2.5, L = 1, C = 1), 
+  'Critically damped' = c(R = 2, L = 1, C = 1),
+  'Underdamped' = c(R = 1, L = 1.5, C = 1.5)
 
 )
 
-#R <- 2.5#1e3         # 1 kOhm
-#L <- 1#15e-3       # 15 mH
-#C <- 1#15e-4       # 150 uF
+init_p_values <- list(
+  'Overdamped' = c(
+    a1 = 9.5645737, a2 = 0.2892851, a3 = 9.5628290, a4 = 19.1258191,
+    a5 = 9.5627359, a6 = 4.7823812, a7 = 0.1173948, a8 = 101.7993858
+  ),
+  'Critically damped' = c(
+    a1 = 9.9977977, a2 = 0.2470188, a3 = 10.0000000, a4 = 19.9945977,
+    a5 = 9.9972182, a6 = 4.9984647, a7 = 0.1158029, a8 = 106.1014152
+  ),
+  'Underdamped' = c(
+    a1 = 1.9298698, a2 = 1.5563071, a3 = 4.7412489, a4 = 9.3631423,
+    a5 = 4.6948411, a6 = 0.6383476, a7 = 0.5079602, a8 = 108.4715251
+  )
+)
 
-R <- 1#1e3         # 1 kOhm
-L <- 1.5#15e-3       # 15 mH
-C <- 1.5#15e-4       # 150 uF
+regime <- 'Underdamped'# 'Overdamped' or Critically damped or Underdamped
 
+params <- behaviours[[regime]]
+R <- params["R"]
+L <- params["L"]
+C <- params["C"]
+
+init_p <- init_p_values[[regime]]
+  
 Make_Generic <- function(timing) {
   circuit <- DNArLogic::make_circuit(timing)
   
@@ -112,9 +128,9 @@ Make_Generic <- function(timing) {
   #stopped after 11 iterations
   #a1          a2          a3          a4          a5          a6          a7          a8 
   #1.9298698   1.5563071   4.7412489   9.3631423   4.6948411   0.6383476   0.5079602 108.4715251 
-  init_p <- c(
-   1.9298698 ,  1.5563071,   4.7412489,   9.3631423 ,  4.6948411,   0.6383476,   0.5079602, 108.4715251  ### Critically DAMPED
-  )
+  #init_p <- c(
+  # 1.9298698 ,  1.5563071,   4.7412489,   9.3631423 ,  4.6948411,   0.6383476,   0.5079602, 108.4715251  ### underdamped DAMPED
+  #)
 #                Metric       Model         Sim    AbsError  RelError
 # 1         Peak Time 17.07426857 17.25431358 0.180045011  1.043478
 # 2 Max Overshoot (%) 13.23699020 16.55846926 3.321479056 20.059095
@@ -242,7 +258,7 @@ Plot_behavior(
   plot_species= c('v1p', 'rlcol_i', 'rlcol_vc'), # c('v1p','rlcol_i', 'rlcol_vc', 'rlcl_state1', 'rlcl_state2', 'rlcl_add3_2', 'rlcl_mul2', 'rlcl_mul3', 'rlcl_mul4',  'l_consume1', 'l_consume2', 'l_scaler1', 'l_scaler2', 'l_delay1', 'l_delay2'
   plot_species_dotted=c('V(C)','I(L)' ), #
 # 
-  chart_title = sprintf("Underdamped RLC Circuit Response DSD Vin=10[V] R=%s L=%s C=%s\n", R, L, C), # "RLC Step Response 
+  chart_title = sprintf("%s RLC Circuit Response DSD Vin=10[V] R=%s L=%s C=%s\n", regime, R, L, C), # "RLC Step Response 
   timing
 )
 

@@ -211,23 +211,23 @@ compare_model_sim <- function(timing,
 }
 
 analyze_transient_metrics <- function(timing, vc_model, vc_sim, t0, t1) {
-  
+
   idx <- which(timing >= t0 & timing <= t1)
   t_slice <- timing[idx]
   v_model <- vc_model[idx]
   v_sim   <- vc_sim[idx]
-  
+
   compute_metrics <- function(t, v) {
     v_final <- tail(v, 1)
     v_peak <- max(v)
     peak_index <- which.max(v)
     t_peak <- t[peak_index]
     overshoot <- (v_peak - v_final) / abs(v_final) * 100
-    
+
     t_10 <- tryCatch(approx(v, t, xout = 0.1 * v_final)$y, error = function(e) NA)
     t_90 <- tryCatch(approx(v, t, xout = 0.9 * v_final)$y, error = function(e) NA)
     rise_time <- t_90 - t_10
-    
+
     within_bounds <- abs(v - v_final) <= 0.02 * abs(v_final)
     settling_time <- NA
     for (i in seq_along(t)) {
@@ -236,34 +236,50 @@ analyze_transient_metrics <- function(timing, vc_model, vc_sim, t0, t1) {
         break
       }
     }
-    
+
     zeta <- if (v_peak > v_final && v_final != 0) {
       log_dec <- log(v_peak / v_final)
       log_dec / sqrt(pi^2 + log_dec^2)
     } else {
       NA
     }
-    
+
     return(list(
       peak_time = t_peak,
       overshoot = overshoot,
       rise_time = rise_time,
       settling_time = settling_time,
-      damping_ratio = zeta
+      damping_ratio = zeta,
+      final_value = v_final
     ))
   }
-  
+
   m_model <- compute_metrics(t_slice, v_model)
   m_sim   <- compute_metrics(t_slice, v_sim)
-  
+
+  steady_state_error <- abs(m_model$final_value - m_sim$final_value) / abs(m_sim$final_value) * 100
+
   result <- data.frame(
-    Metric = c("Peak Time", "Max Overshoot (%)", "Rise Time", "Settling Time", "Damping Ratio"),
-    Model  = c(m_model$peak_time, m_model$overshoot, m_model$rise_time, m_model$settling_time, m_model$damping_ratio),
-    Sim    = c(m_sim$peak_time,   m_sim$overshoot,   m_sim$rise_time,   m_sim$settling_time,   m_sim$damping_ratio)
+    Metric = c("Peak Time", "Max Overshoot (%)", "Rise Time", "Settling Time", "Damping Ratio", "Steady-State Error (%)"),
+    Model  = c(m_model$peak_time, m_model$overshoot, m_model$rise_time, m_model$settling_time, m_model$damping_ratio, NA),
+    Sim    = c(m_sim$peak_time,   m_sim$overshoot,   m_sim$rise_time,   m_sim$settling_time,   m_sim$damping_ratio, NA),
+    AbsError = c(
+      abs(m_model$peak_time - m_sim$peak_time),
+      abs(m_model$overshoot - m_sim$overshoot),
+      abs(m_model$rise_time - m_sim$rise_time),
+      abs(m_model$settling_time - m_sim$settling_time),
+      abs(m_model$damping_ratio - m_sim$damping_ratio),
+      NA
+    ),
+    RelError = c(
+      abs(m_model$peak_time - m_sim$peak_time) / abs(m_sim$peak_time) * 100,
+      abs(m_model$overshoot - m_sim$overshoot) / abs(m_sim$overshoot) * 100,
+      abs(m_model$rise_time - m_sim$rise_time) / abs(m_sim$rise_time) * 100,
+      abs(m_model$settling_time - m_sim$settling_time) / abs(m_sim$settling_time) * 100,
+      abs(m_model$damping_ratio - m_sim$damping_ratio) / abs(m_sim$damping_ratio) * 100,
+      steady_state_error
+    )
   )
-  
-  result$AbsError <- abs(result$Model - result$Sim)
-  result$RelError <- abs(result$Model - result$Sim) / abs(result$Sim) * 100
-  
+
   return(result)
 }
