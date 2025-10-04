@@ -5,7 +5,6 @@
 .tcc_playground
 .rd
 man
-*.png
 *.raw
 *.log
 *.net
