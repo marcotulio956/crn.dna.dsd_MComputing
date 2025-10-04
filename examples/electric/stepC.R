@@ -153,7 +153,7 @@ Plot_behavior(
   #plot_species=c('c1il_v1p', 'c1ol_i', 'c1ol_v', 'V(C)', 'V(R)', 'I(C,R)'),
   plot_species=c('c1il_v1p', 'c1ol_i', 'c1ol_v'),
   plot_species_dotted=c('V(C)', 'I(R,C)'),
-  chart_title =  sprintf("Capacitor Response DSD Vin=10[V] R=5e2[ohm] C=4e-3[F]\n"), # 'Capacitor Step Response CRN Vcc=10[V] R=500[ohm] C=50e-4[F]',
+  chart_title =  sprintf("Capacitor Response DSD Vin=10[V] R=5[hΩ] C=4[mF]\n"), # 'Capacitor Step Response CRN Vcc=10[V] R=500[ohm] C=50e-4[F]',
   timing
 )
 

@@ -27,7 +27,7 @@ library(dplyr) # mutate()
 behaviours <- list(
   'Overdamped' = c(R = 2.5, L = 1, C = 1), 
   'Critically damped' = c(R = 2, L = 1, C = 1),
-  'Underdamped' = c(R = 1, L = 1.5, C = 1.5)
+  'Underdamped' = c(R = 1.38, L = 1.5, C = 1.5)
 
 )
 
@@ -46,7 +46,7 @@ init_p_values <- list(
   )
 )
 
-regime <- 'Underdamped'# 'Overdamped' or Critically damped or Underdamped
+regime <- 'Overdamped'# 'Overdamped' or Critically damped or Underdamped
 
 params <- behaviours[[regime]]
 R <- params["R"]
@@ -153,7 +153,7 @@ Make_Generic <- function(timing) {
 
 t0 = 0
 t1 = 40
-points = (t1 - t0) * 100 # * 80 # Using 50 time points
+points = (t1 - t0) * 200 # * 80 # Using 50 time points
 timing  <- seq(t0, t1, length.out = points) # Using 50 time points
 circuit <- Make_Generic(timing)
 
@@ -258,7 +258,7 @@ Plot_behavior(
   plot_species= c('v1p', 'rlcol_i', 'rlcol_vc'), # c('v1p','rlcol_i', 'rlcol_vc', 'rlcl_state1', 'rlcl_state2', 'rlcl_add3_2', 'rlcl_mul2', 'rlcl_mul3', 'rlcl_mul4',  'l_consume1', 'l_consume2', 'l_scaler1', 'l_scaler2', 'l_delay1', 'l_delay2'
   plot_species_dotted=c('V(C)','I(L)' ), #
 # 
-  chart_title = sprintf("%s RLC Circuit Response DSD Vin=10[V] R=%s L=%s C=%s\n", regime, R, L, C), # "RLC Step Response 
+  chart_title = sprintf("%s RLC Response DSD Vin=10[V] R=%s[Ω] L=%s[H] C=%s[F]\n", regime, R, L, C), # "RLC Step Response 
   timing
 )
 

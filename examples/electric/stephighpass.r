@@ -93,19 +93,22 @@ Plot_behavior(
   # plot_species=c('I(S)_cs', 'I(L)_cs', 'V(L)_cs', 'V(R)_cs'), # show results 2
   plot_species=c('l1il_vp', 'l1ol_v', 'l1ol_i'),
   plot_species_dotted = c('V(L)_vs', 'I(L)_vs'), 
+  chart_title = sprintf('Cardelli High Pass LC Step Response CRN Vin=10[V] R=%s[ohm] L=%s[H]', R, L),
+  timing
+)
+
+resultado_4dom <- React_4domain_circuit(circuit)
+
+resultado_4dom['l1ol_v'] <- ol_v_scale * ( resultado_4dom['l1ol_vp'] - resultado_4dom['l1ol_vn'] )
+resultado_4dom['l1ol_i'] <- ol_i_scale * ( resultado_4dom['l1ol_ip'] - resultado_4dom['l1ol_in'] )
+
+Plot_behavior(
+  resultado_4dom$behavior, circuit, gate_number, minimum, maximum,
+  plot_species=c('l1il_vp', 'l1ol_v', 'l1ol_i'),
+  plot_species_dotted = c('V(L)_vs', 'I(L)_vs'), 
   chart_title = sprintf('Cardelli High Pass LC Step Response DSD Vin=10[V] R=%s[ohm] L=%s[H]', R, L),
   timing
 )
-# Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, plot_species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))
-
-#resultado_4dom <- React_4domain_circuit(circuit)
-
-#Plot_behavior(
-#  resultado_4dom$behavior, circuit, gate_number, minimum, maximum,
-#  plot_species=c('l1il_i1p', 'l1ol_in', 'l1ol_vp', 'l1ol_vn'),
-#  chart_title = 'Step Response DSD Iin=6.32[mA] L=4.75[mH]',
-#  timing
-#)
 
 #
 #Plot_behavior(resultado_4dom$behavior, circuit, gate_number, minimum, maximum, TRUE)

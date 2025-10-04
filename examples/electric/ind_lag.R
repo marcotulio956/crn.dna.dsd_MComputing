@@ -110,7 +110,7 @@ Plot_behavior(
   #plot_species=c('l1il_i1p', 'l1ol_ip', 'l1ol_vp', 'l1ol_in', 'l1ol_vn', 'l1ol_vout'),
   plot_species=c('l1il_i1p', 'l1ol_vout', 'l1ol_iout'), #  'y', 'z'),
   plot_species_dotted=c('I(L)', 'V(R)'), # 'I(C)', 'V(R)'
-  chart_title = 'Oscilator Inductor Current Lag DSD i=\'l1il_v1p\' R=0.1[ohm] L=0.1[H]',
+  chart_title = 'Oscilator Inductor Current Lag DSD i=\'l1il_v1p\' R=1[dΩ] L=1[dF]',
   timing
 )
 

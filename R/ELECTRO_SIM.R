@@ -221,7 +221,7 @@ simulate_pL_RL_voltage_source <- function(timing, source_voltage, R, L1, L2) {
 
 simulate_sRLC_voltage_source <- function(timing, source_voltage, resistance, inductance, capacitance) {
   n <- length(timing)
-  # x1: inductor current, x2:capacitor voltage
+  
   x1 <- numeric(n)
   x2 <- numeric(n)
 

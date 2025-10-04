@@ -25,3 +25,39 @@ flowchart LR
     ioc@{ shape: lean-r}
     X2@{ shape: lean-l}
     m1ol@{ shape: lean-r}
+
+
+graph LR
+  %% Base inductor production
+  l1il_vp --|k1|--> l1ol_ip
+  l1il_vp --|k2 1/RC|--> l1ol_vp
+  l1il_vn --|k1|--> l1ol_in
+  l1il_vn --|k2 1/RC|--> l1ol_vn
+
+  %% l1ol interconversions
+  l1ol_vn --|k3|--> l1ol_vp
+  l1ol_vp --|k3|--> l1ol_vn
+
+  %% l1ol_ip/in interactions
+  l1ol_in --|k1|--> l1ol_ip
+  l1ol_ip --|k1|--> l1ol_in
+
+  %% Cross interactions
+  l1ol_in --|k2 1/RC|--> l1ol_vp
+  l1ol_ip --|k2 1/RC|--> l1ol_vn
+
+  %% Degradation sinks
+  l1ol_ip --|k4|--> X
+  l1ol_in --|k4|--> X
+  l1ol_vp --|k4|--> X
+  l1ol_vn --|k4|--> X
+
+  %% Zero sink node
+  X([$$\emptyset$$])
+
+  l1il_vp([$$v_i^+$$])
+  l1il_vn([$$v_i^-$$])
+  l1ol_ip([$$i_o^+$$])
+  l1ol_in([$$i_o^-$$])
+  l1ol_vp([$$v_o^+$$])
+  l1ol_vn([$$v_o^-$$])
