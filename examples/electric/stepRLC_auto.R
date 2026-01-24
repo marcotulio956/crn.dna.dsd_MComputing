@@ -60,23 +60,6 @@ obj_fun <- function(p_vec) {
   
   rlc$il$voltage_positive <- 'v1p'
   
-  # init_p <- c(
-  #   a1 = 2, # rate base
-  #   a2 = 100, # fuel base
-  #   a3 = 10, # range base add3
-  #   a4 = 2.32,    # rate_mul1 
-  #   a5 = 0.059,    # rate_mul2 
-  #   a6 = 1.181,    # rate_mul3 
-  #   a7 = 0.2360,    # rate_mul4 
-  #   a8 = 0.7535,    # rate_int1 
-  #   a9 = 2.699,    # rate_int2 
-  #   a10 = 1.2330,    # rate_add3 
-  #   a11 = 1.6467,    # range_add3
-  #   a12 = 10,    # fuel_states
-  #   a13 = 1.61649,  # rate_states1
-  #   a14 = 0.1218   # rate_states2
-  # )
-  
   init_p <- p_vec
   
   rlc_gate <- Make_Circuit_RLC(
