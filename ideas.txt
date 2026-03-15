@@ -1,0 +1,58 @@
+1 inverter or absence indicator:
+	fuel -slow-> a_{ab}
+	a + a_{ab} -fast-> a
+	2*a_{ab} -fast-> a_{ab}
+
+example:
+a->b
+a_{ab} + b -> [operate on b], this reaction doesnt happen until 'a' is depleted
+
+2 inverter or absence indicator  with fast reactions:
+	fuel -slow-> a_{ab}
+	a + a_{ab} -fast-> a
+	2*a_{ab} -fast-> a_{ab}
+
+	a_{ab} -slow-> a'_{ab}
+	a+a'_{ab} -fast-> a
+	2*a'_{ab} -fast-> a'_{ab}
+
+3 increment and decrement operations:
+	let b be the start signal and x the quantity to operate.
+
+	3.1 the system waits for the start signal g to be some nonzero quantity
+	3.2. it transfers the quantity of x to a temporary type x'
+	3.3. it sets g to zero
+	3.4. it transfers all but one molecule of x' back to x
+	3.5.1 for decrement, it removes the last molecule x'
+	3.5.2 for increment, it removes the last molecule of x' and adds to two molecules to x
+
+	in terms of equations:
+
+	x + g -slow-> x' + g, transfer molecules of x to molecules of x' as the control g is inserted
+	g + x_{ab} -slow-> zero, the control g is set to zero only after the absence of x(denoted by x_{ab}) which indicates all molecules of x have been transfered to x'.
+	g'_{ab}  + 2x' -fast-> x + x' + x^{rx}, g'_{ab} is a secondary absence indicator by using fast reactions.
+	x^{rx} -slow-> zero, x^{rx} indicate that we are currently transferring molecules of x' back to x.
+	x^{rx}_{ab} + x' + g'_{ab} -slow-> zero, decrement
+	x^{rx}_{ab} + x' + g'_{ab} -slow-> 2x, increment
+	
+	with this module a small modification on the 3rd eq is possible to implement a division by 2:
+	g'_{ab} + 2x' -fast-> x + x^{rx}
+
+4 copier
+	g + a -slow-> g + a', in the presence of g, a reaction transfersthe quantity of a to a'
+	g + a_{ab} -slow-> zero, after all molecules of a have been transferred to a', molecules of g are removed
+	g_{ab} + a' -slow-> a + b, removing g  ensures a is copied exactly once, after g has been removed, transfer the quantity of a' back to a and also creates this same quantity of b
+
+5 comparator
+	if (a>b) ? t=true:t=false;
+
+	let g create g1 and g2 as two start controls
+	g -fast-> g1 + g2
+
+	as well as copies of a and b named a^c and b^c
+
+	a^c+b^c -> null, here the result of molecules left that persisted will be whichever quantity was greater 
+	fuel + a^c + b^c_{ab} -slow-> a^c + b^c_{ab} + t, if a was originally greater than b then we have the presence of a^c and the absence of b^c, we produce molecules of type t if this condition is met, limiting t
+	by introducing a fuel type.
+	a^c_{ab} + b^c + t -slow-> a^c_{ab} + b^c, we add reactions to destroy t in the case the asserted condition is not true
+	a^c_{ab} + b^c_{ab} + t -> a^c_{ab} + b^c{ab}

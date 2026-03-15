@@ -334,7 +334,7 @@ check_crn <- function(species, ci, reactions, ki, t) {
     # This is a helper function to check the parameters
     check_var <- function(vec, type_checker, err_msgs) {
         # Check if the vec parameter is if the type vector
-        assertthat::assert_that(is.vector(species), msg = err_msg[[1]])
+        assertthat::assert_that(is.vector(vec), msg = err_msgs[[1]])
 
         # Check if all vector elements are of the correct type
         # using the type_checker function
@@ -361,11 +361,16 @@ check_crn <- function(species, ci, reactions, ki, t) {
         list('reactions parameter should be a vector',
              'All elements of reactions must be text')
     )
+    # Custom checker for ki that allows numeric or function
+    is_numeric_or_function <- function(x) {
+        return(is.numeric(x) || is.function(x))
+    }
+    
     check_var(
         ki,
-        is.numeric,
+        is_numeric_or_function,
         list('ki parameter should be a vector',
-             'All elements of ki must be numbers')
+             'All elements of ki must be numbers or functions')
     )
     check_var(
         t,

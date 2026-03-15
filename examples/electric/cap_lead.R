@@ -28,7 +28,7 @@ library(pracma)  # For findpeaks function if needed
 
 
 Make_Generic <- function(timing) {
-  circuit <- DNArLogic::make_circuit(timing)
+  circuit <- make_circuit(timing)
   
   g_dalchau <- Make_Oscillator_Dalchau('osc', 'y', 'z', 'c1il_v1p', 9, 8, 5, 10e-2)
 

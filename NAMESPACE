@@ -66,6 +66,12 @@ export(Make_Sqrt2_Wang)
 export(Make_Sub2In_Song)
 export(Make_Sub2In_Wang)
 
+# DNAr Signals and Systems
+export(Make_Phase_Generator)
+export(Make_Delay_Unit)
+export(Make_Coefficient_Multiplier)
+export(Make_TwoTap_Filter)
+export(Make_Biquad_Filter)
 
 importFrom(utils,capture.output)
 importFrom(utils,read.csv)
