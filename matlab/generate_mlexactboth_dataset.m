@@ -1,0 +1,235 @@
+% generate_mlexactboth_dataset.m
+%
+% Generate Morris-Lecar stochastic datasets across several dynamical regimes.
+%
+% Outputs:
+%   mlexactboth_timeseries.csv
+%   mlexactboth_runs.csv
+
+clear;
+clc;
+
+%% ------------------------------------------------------------------------
+% Output directory
+%% ------------------------------------------------------------------------
+
+scriptDir = fileparts(mfilename('fullpath'));
+outDir = fullfile(scriptDir,'..','factorial_design','data');
+
+if ~exist(outDir,'dir')
+    mkdir(outDir);
+end
+
+%% ------------------------------------------------------------------------
+% Dataset configuration
+%% ------------------------------------------------------------------------
+
+tmax = 800;
+dt   = 1;
+
+tUniform = (0:dt:tmax)';
+
+nReplicates = 30;
+
+regimes = {
+    % 'low_drive_quiescent'      ,  60 , 40 , 40
+    'near_threshold_irregular_fewerGates' ,  80 , 20 , 20
+    'near_threshold_irregular_extraGates' ,  80 , 120 , 120
+    % 'tonic_spiking'            , 100 , 40 , 40
+    % 'high_drive_fast_spiking'  , 130 , 40 , 40
+    % 'channel_noise_dominant'   , 100 , 20 , 20
+    % 'tonic_spiking_lV'         , 100 ,  5 ,  5
+    % 'tonic_spiking_hV'         , 100 , 60, 60
+    
+};
+
+nRuns = size(regimes,1) * nReplicates;
+
+allSeries = cell(nRuns,1);
+allMeta   = cell(nRuns,1);
+
+runID = 1;
+
+%% ------------------------------------------------------------------------
+% Main loop
+%% ------------------------------------------------------------------------
+
+for r = 1:size(regimes,1)
+
+    regimeName = regimes{r,1};
+    Iapp       = regimes{r,2};
+    Mtot       = regimes{r,3};
+    Ntot       = regimes{r,4};
+
+    fprintf('Regime: %s\n', regimeName);
+
+    for rep = 1:nReplicates
+
+        seed = r*10000 + rep;
+        rng(seed);
+
+        fprintf('  replicate %d/%d\n',rep,nReplicates);
+
+        %% Run simulation
+
+        [V,M,N,t] = mlexactboth( ...
+            tmax,...
+            Mtot,...
+            Ntot,...
+            false,...
+            Iapp);
+
+        %% ----------------------------------------------------------------
+        % Clean simulator output
+        %
+        % mlexactboth produces duplicate times because each ode23 segment
+        % begins at the previous event time.
+        %% ----------------------------------------------------------------
+
+        t = t(:);
+        V = V(:);
+        M = M(:);
+        N = N(:);
+
+        % sort just in case
+        [t,order] = sort(t);
+
+        V = V(order);
+        M = M(order);
+        N = N(order);
+
+        % keep last state observed at each timestamp
+        [tUnique,idx] = unique(t,'last');
+
+        V = V(idx);
+        M = M(idx);
+        N = N(idx);
+
+        %% ----------------------------------------------------------------
+        % Resample onto a fixed grid
+        %% ----------------------------------------------------------------
+
+        Vgrid = interp1( ...
+            tUnique,...
+            V,...
+            tUniform,...
+            'linear',...
+            'extrap');
+
+        Mgrid = interp1( ...
+            tUnique,...
+            M,...
+            tUniform,...
+            'previous',...
+            'extrap');
+
+        Ngrid = interp1( ...
+            tUnique,...
+            N,...
+            tUniform,...
+            'previous',...
+            'extrap');
+
+        %% ----------------------------------------------------------------
+        % Normalized voltage
+        %% ----------------------------------------------------------------
+
+        vmin = min(Vgrid);
+        vmax = max(Vgrid);
+
+        if vmax > vmin
+            Vnorm = (Vgrid - vmin) ./ (vmax - vmin);
+        else
+            Vnorm = zeros(size(Vgrid));
+        end
+
+        %% ----------------------------------------------------------------
+        % Spike detection
+        %% ----------------------------------------------------------------
+
+        threshold = vmin + 0.70*(vmax-vmin);
+
+        isAbove = Vgrid >= threshold;
+
+        spikeTrain = [0; diff(isAbove)==1];
+
+        nSpikes = sum(spikeTrain);
+
+        %% ----------------------------------------------------------------
+        % Time series table
+        %% ----------------------------------------------------------------
+
+        n = numel(tUniform);
+
+        T = table( ...
+            repmat(runID,n,1), ...
+            repmat({regimeName},n,1), ...
+            repmat(rep,n,1), ...
+            repmat(seed,n,1), ...
+            repmat(Iapp,n,1), ...
+            repmat(Mtot,n,1), ...
+            repmat(Ntot,n,1), ...
+            tUniform, ...
+            Vgrid, ...
+            Vnorm, ...
+            Mgrid, ...
+            Ngrid, ...
+            spikeTrain, ...
+            'VariableNames',{ ...
+            'run_id', ...
+            'regime', ...
+            'replicate', ...
+            'seed', ...
+            'iapp', ...
+            'Mtot', ...
+            'Ntot', ...
+            'time', ...
+            'V', ...
+            'V_norm', ...
+            'M', ...
+            'N', ...
+            'spike'});
+
+        allSeries{runID} = T;
+
+        %% ----------------------------------------------------------------
+        % Metadata table
+        %% ----------------------------------------------------------------
+
+        allMeta{runID} = table( ...
+            runID,...
+            {regimeName},...
+            rep,...
+            seed,...
+            Iapp,...
+            Mtot,...
+            Ntot,...
+            nSpikes,...
+            'VariableNames',{ ...
+            'run_id',...
+            'regime',...
+            'replicate',...
+            'seed',...
+            'iapp',...
+            'Mtot',...
+            'Ntot',...
+            'n_spikes'});
+
+        runID = runID + 1;
+
+    end
+end
+
+timeseriesTbl = vertcat(allSeries{:});
+runsTbl       = vertcat(allMeta{:});
+
+timeseriesFile = fullfile(outDir,'mlexactboth_timeseries_800ms_nearthreshold_fewerVsExtraGates.csv');
+runsFile       = fullfile(outDir,'mlexactboth_runs_800ms_nearthreshold_fewerVsExtraGates.csv');
+
+writetable(timeseriesTbl,timeseriesFile);
+writetable(runsTbl,runsFile);
+
+fprintf('\nSaved:\n');
+fprintf('  %s\n',timeseriesFile);
+fprintf('  %s\n',runsFile);
+fprintf('Done.\n');

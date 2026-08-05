@@ -1,0 +1,162 @@
+# Load the libraries
+# DO NOT USE library(DNAr)
+# DO NOT USE library(DNArLogic)
+# DO NOT USE library(DNArAnalog)
+
+rm(list = ls())
+
+source('R/4domain_reactor.R')
+source('R/ANALOG_GATE_LIB.R')
+source('R/analysis.R')
+source('R/crn_reactor.R')
+source('R/dsd.R')
+source('R/ELECTRO_LIB.R')
+source('R/GATE_LIB.R')
+source('R/io.R')
+source('R/neuron_hjelmfelt.R')
+source('R/parser.R')
+source('R/util_functions.R')
+
+jn <- function(...) { paste(..., sep = '') }
+
+library(ggplot2) # plot()
+library(dplyr) # mutate()
+
+Make_Square_Wave <- function(name, nameInput1, nameInput2, nameInput3,
+                                    cinput1, cinput2, cinput3, rate) {
+  species <- list(
+    input1 = nameInput1, #A
+    input2 = nameInput2, #B
+    input3 = nameInput3,  #C
+    output1 = jn(name,'_square'),  #O
+    inter1 = jn(name,'_fuel')  #D
+  )
+
+  ci <- c(cinput1, cinput2, cinput3, cinput1, 0)
+
+  reactions <- c(
+    # 'B + A + C -> B + B + B'
+    jn(species$input2, ' + ', species$input1, ' -> ', species$input2,
+       ' + ', species$input2),
+    # 'C + B + A -> C + C + C'
+    jn(species$input3, ' + ', species$input2, ' -> ', species$input3,
+       ' + ', species$input3),
+    # 'A + C + B -> A + A + A'
+    jn(species$input1, ' + ', species$input3, ' -> ', species$input1,
+       ' + ', species$input1),
+
+    # 'A + inter1 -> A + O'
+    jn(species$input1, ' + ', species$inter1, ' -> ', species$input1,
+       ' + ', species$output1),
+
+    # 'B + O -> + B + inter1'
+    jn(species$input2, ' + ', species$output1, ' -> ', species$input2,
+       ' + ', species$inter1)
+
+  )
+
+
+  ki        <- c(rate, rate, rate, 100*rate, 100*rate)
+
+  oscillator_gate <- list(
+    name      = name,
+    species   = species,
+    reactions = reactions,
+    ci        = ci,
+    ki        = ki
+  )
+
+  return(oscillator_gate)
+}
+
+
+Make_Generic <- function(timing) {
+  circuit <- make_circuit(timing)
+
+  ### Derivative by time delay
+    # input1 lag
+    g1_1 <- Make_Mul2In_Wang('mul',
+      'x', 'z', 'x_lag',
+      1, 3,
+      1e-1
+    )
+    g1_2 <- Make_Sub2In_Wang('sub1',
+      'x1', 'y1', 'g',
+      111, 21,
+      0, 1e3
+    )
+    g1_3 <- Make_Sub2In_Wang('sub2',
+       'x2', 'y2', 'l',
+       3, 4,
+       1, 1e3
+    )
+    #circuit <- DNArLogic::circuit_add_gate(circuit, g1_1)
+    #circuit <- DNArLogic::circuit_add_gate(circuit, g1_2)
+    #circuit <- DNArLogic::circuit_add_gate(circuit, g1_3)
+
+  ###
+  
+  # - Dig and Analog
+  #g1 <- Make_Mul2In_Wang(r1$name, r1$il$current, jn(r1$name, '_R'), r1$ol$voltage, r1$ic$current, r1$ic$resistence, 2e3)
+  #g2 <- Make_Div2In_Wang(r1$name, r1$il$voltage, jn(r1$name, '_R'), r1$ol$current, r1$ic$voltage, r1$ic$resistence, 1e3, 2e3)
+  #g1 <- make_latchd('latch1',2, 1)
+  #g2 <- make_flipflopd('ffd1', 2, 1)
+  #g1 <- Make_Div2In_Wang('div1w', 'Xd4', 'Yd4', 'Zd4', 1, 5, 0.5, 1e3)
+  g_square <- Make_Square_Wave('sin','x', 'y', 'z', 10, 2, 3, 1)
+  # add2circuit
+  #circuit <- DNArLogic::circuit_add_gate(circuit, a1_gates)
+  #circuit <- DNArLogic::circuit_add_gate(circuit, t1_gate)
+  circuit <- DNArLogic::circuit_add_gate(circuit, g_square)
+
+  # - Electro
+  # e1_gates <- Make_Resistor(r1$name, r1$il, r1$ol, r1$ic)
+  # e1_gates <- Make_Resistor(r2$name, r2$il, r2$ol, r2$ic)
+  
+  #t2_gate <- Make_Comparator('comp', 'x', 'y', 'o1', 'o2', 0, 0, 10)
+  #t3_gate <- Make_Capacitor_crn2()
+  g_derivative <- Make_Derivative('der', 'x', 'zero', 'pdxdt', 'ndxdt', 0, 0, 1)
+  g_integrator <- Make_Integrator_OishiYordanov('int', 'x', 'zero', 'pintx', 'nintx', 0, 0, 1)
+  # add2circuit
+  #circuit <- circuit_add_compile_gates(circuit, e2_gates)
+  #circuit <- circuit_add_compile_gates(circuit, e2_gates)
+  circuit <- DNArLogic::circuit_add_gate(circuit, g_derivative)
+  circuit <- DNArLogic::circuit_add_gate(circuit, g_integrator)
+
+  
+
+  return (circuit)
+}
+t0 = 0
+t1 = 1
+points = (t1 - t0) * 100 # Using 50 time points
+timing  <- seq(0, t1, length.out = points) 
+circuit <- Make_Generic(timing)
+print(circuit)
+result_crn <- React_circuit(circuit)
+
+expected_value = 0
+minimum = expected_value * 0.95
+maximum = expected_value * 1.05
+gate_numbers = c() 
+
+Plot_behavior(
+  result_crn, circuit, gate_numbers, minimum, maximum,
+  #plot_species=c('c1ol_voltage', 'c1_l_v_rate1','c1ol_current','c1ol_charge'),
+  # plot_species=c('c1il_charge', 'c1ol_charge', 'c1ol_voltage', 'c1ol_current'),
+  #plot_species=c('x', 'pintx', 'pdxdt', 'ndxdt', 'x_dir2'),
+  #plot_species=c('x', 'y', 'z', 'pintx', 'nintx', 'pdxdt', 'ndxdt', 'sin_square'),
+  plot_species=c('x', 'y', 'z', 'sin_square', 'sin_fuel'),
+  #plot_species=c(),
+  timing
+)
+# Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, plot_species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))
+
+#resultado_4dom <- React_4domain_circuit(circuit)
+#
+#Plot_behavior(resultado_4dom$behavior, circuit, gate_number, minimum, maximum, TRUE)
+#
+#resultado_comb <- Compare_behaviors(resultado_crn, resultado_4dom, circuit, gate_number)
+#
+#p1 <- Plot_behavior_comb(resultado_comb, circuit, gate_number, minimum, maximum, TRUE)
+
+

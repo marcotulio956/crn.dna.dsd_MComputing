@@ -1,0 +1,100 @@
+directive rendering {classic = {mode = nucleotides}}
+directive simulator deterministic
+directive deterministic {stiff=true}
+directive units{concentration=uM}
+directive compilation infinite
+directive parameters [Ain = 1; Ni = 10000.0; NiSI = 10000.0; 7 NiAF = 10000.0; NdegE = 12; NdegH = 0.1; Hs = 0; kdegE = 0.1; kdegH = 0.00002]
+
+//// Toehold domain reactivity
+dom ta = {bind=0.01; unbind=10; colour="green"} // Inputs
+dom th = {bind=0.01; unbind=10; colour="orange"} // Weights
+dom tb = {bind=1; unbind=10; colour="#00fbff"} // State
+dom te = {bind=0.05; unbind=10; colour="#eb34e8"} // Activation
+dom tfsi = {bind=1; unbind=10; colour="black"} // Fuel for SI
+dom tfaf = {bind=1; unbind=10; colour="#05f796"} // Fuel for AF
+
+//// Translator toeholds reactivity
+dom tiwa1 = {bind=1; unbind=10; colour="#ffe000"} // WA1
+dom tiwa2 = {bind=1; unbind=10; colour="#ffe000"} // WA2
+dom tiwa3 = {bind=1; unbind=10; colour="#ffe000"} // WA3
+dom tism = {bind=1; unbind=10; colour="blue"} // SM
+dom tisi = {bind=1; unbind=10; colour="red"} // SI
+dom tiaf = {bind=1; unbind=10; colour="#b9bdbb"} // AF
+
+//// Inputs
+def A1() = <taˆ a1>
+def A2() = <taˆ a2>
+def A3() = <taˆ a3>
+//// Weights
+def H1() = <thˆ h1>
+def H2() = <thˆ h2>
+def H3() = <thˆ h3>
+//// State
+def B() = <tbˆ b>
+//// Activation
+def E() = <teˆ e>
+//// Join gate (R1 + R2 <-> T)
+def Join(ta, a, tb, b, tr) = {taˆ*}[a tbˆ]:[b trˆ]:[i]
+//// Fork gate (T <-> P1 + P2)
+def Fork(ta, a, tb, b, tr) = [i]:[taˆ a]:[tbˆ b]{trˆ*}
+
+//// Decay modules
+// E removal
+ def degE() = {teˆ*}[e]
+// H1 removal
+ def degH1() = {thˆ*}[h1]
+// H2 removal
+ def degH2() = {thˆ*}[h2]
+// H3 removal
+ def degH3() = {thˆ*}[h3]
+
+//// Weight accumulation: An + E <-> E + Hn
+ def WA_fuel(an, hn, tiwan) =
+ ( Ni Join(ta, an, te, e, tiwan)
+ | Ni Fork(th, hn, te, e, tiwan)
+ | Ni <hn teˆ>
+ | Ni <i thˆ>
+ | Ni <tiwanˆ i>
+ )
+ //// Signal modulation: An + Hn <-> Hn + B
+ def SM_fuel(an, hn) =
+ ( Ni Join(ta, an, th, hn, tism)
+ | Ni Fork(tb, b, th, hn, tism)
+ | Ni <b thˆ>
+ | Ni <i tbˆ>
+ | Ni <tismˆ i>
+ )
+ //// Signal integration: I + An <-> An + B
+ def SI_fuel(in, an) =
+ ( NiSI Join(tfsi, in, ta, an, tisi)
+ | NiSI Fork(tb, b, ta, an, tisi)
+ | NiSI <b taˆ>
+ | NiSI <tfsiˆ in>
+ | Ni <i tbˆ>
+ | Ni <tisiˆ i>
+ )
+ //// Activation function: Faf + B <-> Faf + E
+ def AF() =
+ ( Ni Join(tb, b, tfaf, ib, tiaf)
+ | Ni Fork(te, e, tfaf, ib, tiaf)
+ | Ni <e tfafˆ>
+ | Ni <tfafˆ ib>
+ | NiAF <i teˆ>
+ | NiAF <tiafˆ i>
+ )
+
+ //// Fuels N=1
+ ( SM_fuel(a1, h1)
+ | SI_fuel(i1, a1)
+ | WA_fuel(a1, h1, tiwa1)
+ //// Fuels N=2
+ | SM_fuel(a2, h2)
+ | SI_fuel(i2, a2)
+ | WA_fuel(a2, h2, tiwa2)
+ //// Fuels N=3
+ | SM_fuel(a3, h3)
+ | SI_fuel(i3, a3)
+ | WA_fuel(a3, h3, tiwa3)
+ //// Fuels Activation function
+ | AF()
+ )

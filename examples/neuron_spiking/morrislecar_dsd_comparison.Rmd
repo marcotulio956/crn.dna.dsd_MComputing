@@ -1,0 +1,401 @@
+---
+title: "METQ: A Comparison of Morris–Lecar and Hebbian DNA Strand Displacement Neuron Systems Under Stochastic Dynamics"
+output: html_document
+---
+
+# METQ:\>A Comparison of Morris–Lecar and Hebbian DNA Strand Displacement Neuron Systems Under Stochastic Dynamics
+
+### Marco Túlio Siqueira da Mata
+
+## 1 Introduction
+
+This report investigates the stochastic Morris-Lecar reference model in `matlab/mlexactboth.m` to the chemical reaction network(CRN) neuron model mapped by `DNAr:::Make_Spiking_CRN_Neuron` capable of Hebbian learning, translatable to DNA strand displacement(DSD) reactions via `DNARr::react_4domain`, run stochastically through custom Gillespie's Stochastic Simulation Algorithm(SSA) for DSD reactions via `DNAr::react_stochastic_dsd`. The comparison target being their spike behavior under stochastic realizations.
+
+### 1.1 Morris–Lecar Neuron Model
+
+The Morris–Lecar model is a conductance-based neuronal model originally proposed to describe oscillatory electrical activity in barnacle muscle fibers. It is a reduced biophysical neuron model analogous to the Hodgkin–Huxley system, but with fewer gating variables and lower dimensionality. The model captures excitability, bistability, oscillations, and spike generation through voltage-dependent ionic conductances.
+
+### 1.1.1 Membrane Equation
+
+The membrane potential evolves according to current balance on the membrane capacitance:
+
+$$C \frac{dV}{dt}
+=
+I_{\mathrm{app}}
+-
+I_{\mathrm{Ca}}
+-
+I_{\mathrm{K}}
+-
+I_{\mathrm{L}}$$
+
+where:
+
+- $V(t)$: membrane potential
+
+- $C$: membrane capacitance
+
+- $I_{\mathrm{app}}$: externally applied current
+
+- Calcium Current
+
+  $$I_{\mathrm{Ca}}
+  =
+  g_{\mathrm{Ca}}\, m \,(V - V_{\mathrm{Ca}})$$
+
+### 1.2 CRN Hebbian Neuron Model
+
+The DSD neuron is first inspected as a CRN, then translated through `react_4domain`, and only after that is each pathway simulated stochastically.
+
+```{r dsd-neuron-setup, message=FALSE, warning=FALSE}
+source('factorial_design/dsd_neuron.R')
+
+dsd_stepwise <- run_dsd_neuron_stepwise(
+  t = seq(0, 400, by = 1),
+  seed = 123
+)
+
+dsd_plots <- plot_dsd_neuron_stepwise(
+  dsd_stepwise,
+  save_dir = 'factorial_design/figures_dsd_neuron'
+)
+```
+
+#### 1.2.1 Deterministic CRN form
+
+```{r dsd-crn-deterministic, message=FALSE, warning=FALSE}
+dsd_plots$crn_det
+```
+
+#### 1.2.2 Deterministic translated DSD form
+
+```{r dsd-dsd-deterministic, message=FALSE, warning=FALSE}
+dsd_plots$dsd_det
+```
+
+#### 1.2.3 Stochastic CRN form
+
+```{r dsd-crn-stochastic, message=FALSE, warning=FALSE}
+dsd_plots$crn_stoch
+```
+
+#### 1.2.4 Stochastic translated DSD form
+
+```{r dsd-dsd-stochastic, message=FALSE, warning=FALSE}
+dsd_plots$dsd_stoch
+```
+
+## Next Step
+
+After validating these four behaviors, the Morris-Lecar CSV dataset can be brought back in and compared against the stochastic translated DSD output. - $M$: number of open calcium channels - $N$: number of open potassium channels
+
+### 1.1.6 Model Parameters
+
+| Parameter            | Meaning                           |
+|----------------------|-----------------------------------|
+| $$C$$                | Membrane capacitance              |
+| $$g_{\mathrm{Ca}}$$  | Maximum calcium conductance       |
+| $$g_{\mathrm{K}}$$   | Maximum potassium conductance     |
+| $$g_{\mathrm{L}}$$   | Leak conductance                  |
+| $$V_{\mathrm{Ca}}$$  | Calcium reversal potential        |
+| $$V_{\mathrm{K}}$$   | Potassium reversal potential      |
+| $$V_{\mathrm{L}}$$   | Leak reversal potential           |
+| $$I_{\mathrm{app}}$$ | Applied external current          |
+| $$\phi_n$$           | Potassium channel kinetic scaling |
+
+### 1.1.7 Stochastic Ion Channel Formulation
+
+In the deterministic Morris–Lecar model, the gating variables (m) and (n) represent average fractions of open calcium and potassium ion channels, respectively. This approximation assumes that the number of ion channels is sufficiently large such that fluctuations due to individual channel transitions can be neglected. In the stochastic formulation, however, the continuous gating variables are replaced by discrete random variables representing finite channel populations, introducing intrinsic channel noise into the membrane dynamics.
+
+The stochastic model therefore tracks:
+
+- number of open calcium channels,$$M(t)$$
+
+- number of open potassium channels
+
+  $$N(t)$$
+
+subject to the constraints
+
+$$0 \le M \le M_{\mathrm{tot}}$$
+
+and
+
+$$0 \le N \le N_{\mathrm{tot}}$$
+
+where $$M_{\mathrm{tot}}$$ and $$N_{\mathrm{tot}}$$ denote the total numbers of calcium and potassium channels, respectively.
+
+The continuous activation variables are replaced by normalized channel fractions:
+
+$$m = \frac{M}{M_{\mathrm{tot}}}$$
+
+and
+
+$$n = \frac{N}{N_{\mathrm{tot}}}.$$
+
+Under this formulation, ion channel dynamics become a continuous-time Markov jump process in which channels randomly transition between open and closed states according to voltage-dependent transition rates.
+
+The stochastic dynamics are governed by four reaction channels:
+
+- Calcium Channel Opening
+
+$$M \rightarrow M+1$$
+
+with transition hazard
+
+$$\alpha_m(V)\left(M_{\mathrm{tot}}-M\right).$$
+
+- Calcium Channel Closing
+
+$$M \rightarrow M-1$$
+
+with transition hazard
+
+$$\beta_m(V)M.$$
+
+- Potassium Channel Opening
+
+$$N \rightarrow N+1$$
+
+with transition hazard
+
+$$\alpha_n(V)\left(N_{\mathrm{tot}}-N\right).$$
+
+- Potassium Channel Closing
+
+$$N \rightarrow N-1$$
+
+with transition hazard
+
+$$\beta_n(V)N.$$
+
+The voltage-dependent opening and closing rates are defined by
+
+$$ \frac{
+m_\infty(V)
+}{
+\tau_m(V)
+}$$
+
+$$\frac{
+1-m_\infty(V)
+}{
+\tau_m(V)
+}$$
+
+for calcium channels, and
+
+$$ \frac{
+n_\infty(V)
+}{
+\tau_n(V)
+}$$
+
+$$\frac{
+1-n_\infty(V)
+}{
+\tau_n(V)
+}$$
+
+for potassium channels.
+
+The membrane voltage dynamics become:
+
+$$g_{\mathrm{L}} (V-V_{\mathrm{L})}{ C } $$
+
+Between stochastic channel events, the variables (M) and (N) remain constant while the membrane voltage evolves continuously according to the deterministic differential equation above. Whenever a channel transition occurs, the discrete channel populations are updated instantaneously.
+
+Consequently, the stochastic Morris–Lecar system constitutes a piecewise deterministic Markov process (PDMP), coupling continuous membrane dynamics with discrete stochastic ion channel transitions. This formulation captures intrinsic neuronal noise arising from finite ion channel populations and enables the emergence of stochastic spike timing variability and noise-induced firing events.
+
+### 1.1.8 Simulation Code Snippet
+
+``` matlab
+%% Use global variables to represent the channel state
+% and random trigger for Poisson process
+% Calcium
+global Mcalcium_tot % total number of calcium channels
+global Mcalcium % number of calcium channels in conducting state
+global tau1 T1 % dummy variables for time to next Ca-opening event
+global tau2 T2 % dummy variables for time to next Ca-closing event
+% Potassium
+global Npotassium_tot % total number of potassium channels
+global Npotassium % number of potassium channels in conducting state
+global tau3 T3 % dummy variables for time to next K-opening event
+global tau4 T4 % dummy variables for time to next K-closing event
+%% Set defaults for input arguments
+if nargin < 3, Ntot=40; end
+Npotassium_tot=Ntot;
+if nargin < 2, Mtot=40; end
+Mcalcium_tot=Mtot;
+if nargin < 1, tmax=4e3; end
+if nargin < 4, doPlot=true; end
+if nargin < 5, IappValue=100; end
+%% Parameters
+phi_m=0.4;
+va =-1.2; vb=18;
+vc = 2; vd = 30;
+
+phi_n = 0.04;
+%% Functions for Morris-Lecar
+global Iapp; Iapp=@(t)IappValue; % applied current
+global xi_m; xi_m=@(v)(v-va)/vb; % scaled argument for m-gate input voltage
+global minf; minf=@(v)0.5*(1+tanh(xi_m(v))); % m-gate activation function
+global tau_m; tau_m=@(v)1./(phi_m*cosh(xi_m(v)/2)); % m-gate time constant
+global alpha_m; alpha_m=@(v)(minf(v)./tau_m(v));
+global beta_m; beta_m=@(v)((1-minf(v))./tau_m(v));
+global xi_n; xi_n=@(v)(v-vc)/vd; % scaled argument for n-gate input
+global ninf; ninf=@(v)0.5*(1+tanh(xi_n(v))); % n-gate activation function
+global tau_n; tau_n=@(v)1./(phi_n*cosh(xi_n(v)/2)); % n-gate time constant
+global alpha_n; alpha_n=@(v)(ninf(v)./tau_n(v));
+global beta_n; beta_n=@(v)((1-ninf(v))./tau_n(v));
+%% ODE options including reset
+options=odeset('Events',@nextevent);
+%% initialize
+t0=0;
+t=t0; % global "external" time
+tau1=-log(rand); % time of next event on reaction stream 1 ("internal time")
+tau2=-log(rand); % time of next event on reaction stream 2 ("internal time")
+tau3=-log(rand); % time of next event on reaction stream 3 ("internal time")
+tau4=-log(rand); % time of next event on reaction stream 4 ("internal time")
+T1=0; % integrated intensity function for reaction 1
+T2=0; % integrated intensity function for reaction 2
+T3=0; % integrated intensity function for reaction 3
+T4=0; % integrated intensity function for reaction 4
+V0=-50; % start at an arbitrary middle voltage
+V=V0; % initial voltage
+M0=0; % start with calcium channels all closed
+Mcalcium=M0; % initial state of calcium channel
+M=M0; % use M to record the time course
+N0=ceil(Ntot/2); % start with half potassium channels open
+Npotassium=N0; % initial state of potassium channel
+N=N0; % use N to record the time course
+%% Loop over events
+while t(end)<tmax
+%% integrate ODE for voltage, until the next event is triggered
+% State vector U for integration contains the following components
+% 1 [voltage;
+
+% 2 integral of (# closed)*alpha_m(v(t));
+% 3 integral of (# open)*beta_m(v(t));
+% 4 integral of (# closed)*alpha_n(v(t));
+% 5 integral of (# open)*beta_n(v(t));
+% 6 #open calcium channels;
+% 7 #open potassium channels].
+U0=[V0;0;0;0;0;M0;N0];
+tspan=[t(end),tmax];
+[tout,Uout,~,~,event_idx]=ode23(@dudtfunc,tspan,U0,options);
+Vout=Uout(:,1); % voltage at time of next event
+Mout=Uout(:,6); % number of calcium channels open at end of next event
+Nout=Uout(:,7); % number of potassium channels open at end of next event
+t=[t,tout'];
+V=[V,Vout'];
+M=[M,Mout'];
+N=[N,Nout'];
+%% Identify which reaction occurred, adjust state, and continue;
+% and set trigger for next event.
+mu=event_idx; % next reaction index
+if mu==1 % next reaction is a calcium channel opening
+M0=M0+1; % increment calcium channel state
+tau1=tau1-log(rand); % increment in tau1 is exponentially distributed with mean 1
+elseif mu==2 % next reaction is a calcium channel closing
+M0=M0-1; % decrement calcium channel state
+tau2=tau2-log(rand); % increment in tau2 is exponentially distributed with mean 1
+elseif mu==3 % next reaction is a potassium channel opening
+N0=N0+1;
+% increment potassium channel state
+tau3=tau3-log(rand); % increment in tau3 is exponentially distributed with mean 1
+elseif mu==4 % next reaction is a potassium channel closing
+N0=N0-1;
+% decrement potassium channel state
+tau4=tau4-log(rand); % increment in tau4 likewise
+end
+Mcalcium=M0;
+Npotassium=N0;
+if M0>Mcalcium_tot, error('M>Mtot'), end
+if M0<0, error('M<0'), end
+if N0>Npotassium_tot, error('N>Ntot'), end
+if N0<0, error('N<0'), end
+T1=T1+Uout(end,2);
+T2=T2+Uout(end,3);
+T3=T3+Uout(end,4);
+T4=T4+Uout(end,5);
+V0=V(end);
+
+end % while t(end)<tmax
+```
+
+### 1.1.9 Dynamical Behavior
+
+The Morris–Lecar model can exhibit:
+
+- stable resting states
+- tonic spiking
+- bistability
+- oscillations
+- excitability classes I and II
+- stochastic noise-induced firing
+
+### 1.1.10 Plots from Dataset
+
+Run `matlab/generate_mlexactboth_dataset.m` in MATLAB before this section.
+
+```{r, message=FALSE, warning=FALSE}
+source('factorial_design/mlexactboth_plot_helpers.R')
+
+ml_path <- 'factorial_design/data/mlexactboth_timeseries.csv'
+if (file.exists(ml_path)) {
+  ml <- read.csv(ml_path)
+  head(ml)
+} else {
+  cat('Morris-Lecar dataset missing. Generate it from MATLAB first.\n')
+}
+
+
+
+ml_path <- 'factorial_design/data/mlexactboth_timeseries.csv'
+ml_runs_path <- 'factorial_design/data/mlexactboth_runs.csv'
+
+if (file.exists(ml_path)) {
+  ml_data <- load_mlexactboth_timeseries(ml_path, ml_runs_path)
+  ml_intro_plots <- plot_mlexactboth_regime_grid(
+    timeseries = ml_data$timeseries,
+    replicate = 1
+  )
+  invisible(lapply(names(ml_intro_plots), function(regime_name) {
+    print(ml_intro_plots[[regime_name]])
+  }))
+} else {
+  cat('Morris-Lecar CSV dataset missing. Run matlab/generate_mlexactboth_dataset.m first.\n')
+}
+```
+
+------------------------------------------------------------------------
+
+### 1.2 CRN Hebbian Neuron Model
+
+## Introductory Behavior Plots
+
+## Next Step: Factorial Analysis
+
+The next implementation step is extending this script to a full factorial matrix with repeated realizations per cell and inferential models for spike metrics in `R/analysis.R`.
+
+
+source('factorial_design/compare_morrislecar_dsd.R')
+source('factorial_design/mlexactboth_plot_helpers.R')
+
+ml_path <- 'factorial_design/data/mlexactboth_timeseries.csv'
+ml_runs_path <- 'factorial_design/data/mlexactboth_runs.csv'
+
+if (file.exists(ml_path)) {
+  ml_data <- load_mlexactboth_timeseries(ml_path, ml_runs_path)
+  ml_intro_plots <- plot_mlexactboth_regime_grid(
+    timeseries = ml_data$timeseries,
+    replicate = 1
+  )
+  invisible(lapply(names(ml_intro_plots), function(regime_name) {
+    print(ml_intro_plots[[regime_name]])
+  }))
+} else {
+  cat('Morris-Lecar CSV dataset missing. Run matlab/generate_mlexactboth_dataset.m first.\n')
+}
+

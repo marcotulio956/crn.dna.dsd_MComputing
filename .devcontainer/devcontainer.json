@@ -1,0 +1,25 @@
+{
+  "name": "DNAr",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "..",
+    "args": {
+      "JULIA_VERSION": "1.10.4",
+      "JULIA_MAJOR_MINOR": "1.10"
+    }
+  },
+  "workspaceFolder": "/workspaces/dnar",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "REditorSupport.r",
+        "julialang.language-julia"
+      ],
+      "settings": {
+        "r.rterm.linux": "R",
+        "r.bracketedPaste": true,
+        "julia.executablePath": "/opt/julia/bin/julia"
+      }
+    }
+  }
+}

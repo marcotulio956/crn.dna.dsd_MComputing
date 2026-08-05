@@ -1,0 +1,301 @@
+directive duration 100 points 1000
+directive simulation deterministicstiff
+directive concentration M
+directive compilation infinite
+directive plot sA(); sB(); sC(); sD(); sE(); sF(); sG(); sH()
+
+(* Input and output *)
+def Signal(unk, i1, i2, i3) = <unk i1^ i2 i3^>
+
+(* Unimolecular to one product reaction *)
+def G_1(ia, ib, ic, unko1, o1a) = {ia^*}[ib ic^]<unko1 o1a^>
+def T_1(ic, unko, oa, ob, oc) = {ic^*}[unko oa^]<ob oc^>
+
+(* Intermediate states *)
+def Waste1_uni(unki, ia, ib, ic) = <unki>[ia^ ib ic^]
+def Waste2_1(ib, ic, unko, oa) = <ib>[ic^ unko oa^]
+def P_1(ib, ic, unko, oa) = <ib ic^ unko oa^>
+
+def A_e_B(
+    qi, qmax, CiA, CiB, Cmax,
+    unki, ia, ib, ic,
+    unko, oa, ob, oc
+) = (
+      CiA  * Signal(unki, ia, ib, ic)
+    | CiB  * Signal(unko, oa, ob, oc)
+    | Cmax * G_1(ia, ib, ic, unko, oa)
+    | Cmax * T_1(ic, unko, oa, ob, oc)
+    | rxn Signal(unki, ia, ib, ic) + G_1(ia, ib, ic, unko, oa) ->{qi} Waste1_uni(unki, ia, ib, ic) + P_1(ib, ic, unko, oa)
+    | rxn P_1(ib, ic, unko, oa) + T_1(ic, unko, oa, ob, oc) ->{qmax} Waste2_1(ib, ic, unko, oa) + Signal(unko, oa, ob, oc)
+)
+
+(* Unimolecular to two products reaction *)
+def G_2(ia, ib, ic, unko1, o1a, unko2, o2a) = {ia^*}[ib ic^]<unko1 o1a^ unko2 o2a^>
+def T_2(ic, unko1, o1a, o1b, o1c, unko2, o2a, o2b, o2c) = {ic^*}[unko1 o1a^]<o1b o1c^>:[unko2 o2a^]<o2b o2c^>
+
+(* Intermediate states *)
+def Waste2_2(ib, ic, unko1, o1a, unko2, o2a) = <ib>[ic^ unko1 o1a^ unko2 o2a^]
+def P_2(ib, ic, unko1, o1a, unko2, o2a) = <ib ic^ unko1 o1a^ unko2 o2a^>
+
+def A_e_BpC(
+    qi, qmax, CiA, CiB, CiC, Cmax,
+    unki, ia, ib, ic,
+    unko1, o1a, o1b, o1c,
+    unko2, o2a, o2b, o2c
+) = (
+      CiA  * Signal(unki, ia, ib, ic)
+    | CiB  * Signal(unko1, o1a, o1b, o1c)
+    | CiC  * Signal(unko2, o2a, o2b, o2c)
+    | Cmax * G_2(ia, ib, ic, unko1, o1a, unko2, o2a)
+    | Cmax * T_2(ic, unko1, o1a, o1b, o1c, unko2, o2a, o2b, o2c)
+    | rxn Signal(unki, ia, ib, ic) + G_2(ia, ib, ic, unko1, o1a, unko2, o2a) ->{qi} Waste1_uni(unki, ia, ib, ic) + P_2(ib, ic, unko1, o1a, unko2, o2a)
+    | rxn P_2(ib, ic, unko1, o1a, unko2, o2a) + T_2(ic, unko1, o1a, o1b, o1c, unko2, o2a, o2b, o2c) ->{qmax} Waste2_2(ib, ic, unko1, o1a, unko2, o2a) + Signal(unko1, o1a, o1b, o1c) + Signal(unko2, o2a, o2b, o2c)
+)
+
+(* Unimolecular to three products reaction *)
+def G_3(ia, ib, ic, unko1, o1a, unko2, o2a, unko3, o3a) = {ia^*}[ib ic^]<unko1 o1a^ unko2 o2a^ unko3 o3a^>
+def T_3(ic, unko1, o1a, o1b, o1c, unko2, o2a, o2b, o2c, unko3, o3a, o3b, o3c) = {ic^*}[unko1 o1a^]<o1b o1c^>:[unko2 o2a^]<o2b o2c^>:[unko3 o3a^]<o3b o3c^>
+
+(* Intermediate states *)
+def Waste2_3(ib, ic, unko1, o1a, unko2, o2a, unko3, o3a) = <ib>[ic^ unko1 o1a^ unko2 o2a^ unko3 o3a^]
+def P_3(ib, ic, unko1, o1a, unko2, o2a, unko3, o3a) = <ib ic^ unko1 o1a^ unko2 o2a^ unko3 o3a^>
+
+def A_e_BpCpD(
+    qi, qmax, CiA, CiB, CiC, CiD, Cmax,
+    unki, ia, ib, ic,
+    unko1, o1a, o1b, o1c,
+    unko2, o2a, o2b, o2c,
+    unko3, o3a, o3b, o3c
+) = (
+      CiA  * Signal(unki, ia, ib, ic)
+    | CiB  * Signal(unko1, o1a, o1b, o1c)
+    | CiC  * Signal(unko2, o2a, o2b, o2c)
+    | CiD  * Signal(unko3, o3a, o3b, o3c)
+    | Cmax * G_3(ia, ib, ic, unko1, o1a, unko2, o2a, unko3, o3a)
+    | Cmax * T_3(ic, unko1, o1a, o1b, o1c, unko2, o2a, o2b, o2c, unko3, o3a, o3b, o3c)
+    | rxn Signal(unki, ia, ib, ic) + G_3(ia, ib, ic, unko1, o1a, unko2, o2a, unko3, o3a) ->{qi} Waste1_uni(unki, ia, ib, ic) + P_3(ib, ic, unko1, o1a, unko2, o2a, unko3, o3a)
+    | rxn P_3(ib, ic, unko1, o1a, unko2, o2a, unko3, o3a) + T_3(ic, unko1, o1a, o1b, o1c, unko2, o2a, o2b, o2c, unko3, o3a, o3b, o3c) ->{qmax} Waste2_3(ib, ic, unko1, o1a, unko2, o2a, unko3, o3a) + Signal(unko1, o1a, o1b, o1c) + Signal(unko2, o2a, o2b, o2c) + Signal(unko3, o3a, o3b, o3c)
+)
+
+
+(* Bimolecular to one product reaction *)
+def L_1(i1a, i1b, i1c, i2a, i2b, i2c, unko, oa) = {i1a^*}[i1b i1c^ i2a^]:[i2b i2c^]<unko oa^>
+def W(i1b, i1c, i2a) = <i1b i1c^ i2a^>
+
+(* Intermediate states *)
+def H_1(unki1, i1a, i1b, i1c, i2a, i2b, i2c, unko, oa) = <unki1>[i1a^ i1b i1c^]:{i2a^*}[i2b i2c^]<unko oa^>
+def Waste1_bi(unki1, unki2, i1a, i1b, i1c, i2a, i2b, i2c) = <unki1>[i1a^ i1b i1c^]:<unki2>[i2a^ i2b i2c^]
+
+def ApB_e_C(
+    qi, qmax, CiA, CiB, CiC, Cmax,
+    unka, i1a, i1b, i1c,
+    unkb, i2a, i2b, i2c,
+    unkc, c1, c2, c3
+) = (
+      CiA  * Signal(unka, i1a, i1b, i1c)
+    | CiB  * Signal(unkb, i2a, i2b, i2c)
+    | CiC  * Signal(unkc, c1, c2, c3)
+    | Cmax * L_1(i1a, i1b, i1c, i2a, i2b, i2c, unkc, c1)
+    | Cmax * W(i1b, i1c, i2a)
+    | Cmax * T_1(i2c, unkc, c1, c2 ,c3)
+    | rxn Signal(unka, i1a, i1b, i1c) + L_1(i1a, i1b, i1c, i2a, i2b, i2c, unkc, c1) <->{qi}{qmax} H_1(unka, i1a, i1b, i1c, i2a, i2b, i2c, unkc, c1) + W(i1b, i1c, i2a)
+    | rxn Signal(unkb, i2a, i2b, i2c) + H_1(unka, i1a, i1b, i1c, i2a, i2b, i2c, unkc, c1) ->{qmax} Waste1_bi(unka, unkb, i1a, i1b, i1c, i2a, i2b, i2c) + P_1(ib, ic, unkc, c1)
+    | rxn P_1(ib, ic, unkc, c1) + T_1(i2c, unkc, c1, c2 ,c3) ->{qmax} Waste2_1(i2b, i2c, unkc, c1) + Signal(unkc, c1, c2, c3)
+)
+
+(* Bimolecular to two products reaction *)
+def L_2(i1a, i1b, i1c, i2a, i2b, i2c, unko1, o1a, unko2, o2a) = {i1a^*}[i1b i1c^ i2a^]:[i2b i2c^]<unko1 o1a^ unko2 o2a^>
+
+(* Intermediate states *)
+def H_2(unki1, i1a, i1b, i1c, i2a, i2b, i2c, unko1, o1a, unko2, o2a) = <unki1>[i1a^ i1b i1c^]:{i2a^*}[i2b i2c^]<unko1 o1a^ unko2 o2a^>
+
+def ApB_e_CpD(
+    qi, qmax, CiA, CiB, CiC, CiD, Cmax,
+    unka, i1a, i1b, i1c,
+    unkb, i2a, i2b, i2c,
+    unkc, o1a, o1b, o1c,
+    unkd, o2a, o2b, o2c
+) = (
+      CiA  * Signal(unka, i1a, i1b, i1c)
+    | CiB  * Signal(unkb, i2a, i2b, i2c)
+    | CiC  * Signal(unkc, o1a, o1b, o1c)
+    | CiD  * Signal(unkd, o2a, o2b, o2c)
+    | Cmax * L_2(i1a, i1b, i1c, i2a, i2b, i2c, unkc, o1a, unkd, o2a)
+    | Cmax * W(i1b, i1c, i2a)
+    | Cmax * T_2(i2c, unkc, o1a, o1b, o1c, unkd, o2a, o2b, o2c)
+    | rxn Signal(unka, i1a, i1b, i1c) + L_2(i1a, i1b, i1c, i2a, i2b, i2c, unkc, o1a, unkd, o2a) <->{qi}{qmax} H_2(unka, i1a, i1b, i1c, i2a, i2b, i2c, unkc, o1a, unkd, o2a) + W(i1b, i1c, i2a)
+    | rxn Signal(unkb, i2a, i2b, i2c) + H_2(unka, i1a, i1b, i1c, i2a, i2b, i2c, unkc, o1a, unkd, o2a) ->{qmax} Waste1_bi(unka, unkb, i1a, i1b, i1c, i2a, i2b, i2c) + P_2(i2b, i2c, unkc, o1a, unkd, o2a)
+    | rxn P_2(i2b, i2c, unkc, o1a, unkd, o2a) + T_2(i2c, unkc, o1a, o1b, o1c, unkd, o2a, o2b, o2c) ->{qmax} Waste2_2(i2b, i2c, unkc, o1a, unkd, o2a) + Signal(unkc, o1a, o1b, o1c) + Signal(unkd, o2a, o2b, o2c)
+)
+
+(* Bimolecular to three products reaction *)
+def L_3(i1a, i1b, i1c, i2a, i2b, i2c, unko1, o1a, unko2, o2a, unko3, o3a) = {i1a^*}[i1b i1c^ i2a^]:[i2b i2c^]<unko1 o1a^ unko2 o2a^ unko3 o3a^>
+
+(* Intermediate states *)
+def H_3(unki1, i1a, i1b, i1c, i2a, i2b, i2c, unko1, o1a, unko2, o2a, unko3, o3a) = <unki1>[i1a^ i1b i1c^]:{i2a^*}[i2b i2c^]<unko1 o1a^ unko2 o2a^ unko3 o3a^>
+
+def ApB_e_CpDpE(
+    qi, qmax, CiA, CiB, CiC, CiD, CiE, Cmax,
+    unka, i1a, i1b, i1c,
+    unkb, i2a, i2b, i2c,
+    unkc, o1a, o1b, o1c,
+    unkd, o2a, o2b, o2c,
+    unke, o3a, o3b, o3c
+) = (
+      CiA  * Signal(unka, i1a, i1b, i1c)
+    | CiB  * Signal(unkb, i2a, i2b, i2c)
+    | CiC  * Signal(unkc, o1a, o1b, o1c)
+    | CiD  * Signal(unkd, o2a, o2b, o2c)
+    | CiE  * Signal(unke, o3a, o3b, o3c)
+    | Cmax * L_3(i1a, i1b, i1c, i2a, i2b, i2c, unkc, o1a, unkd, o2a, unke, o3a)
+    | Cmax * W(i1b, i1c, i2a)
+    | Cmax * T_3(i2c, unkc, o1a, o1b, o1c, unkd, o2a, o2b, o2c, unke, o3a, o3b, o3c)
+    | rxn Signal(unka, i1a, i1b, i1c) + L_3(i1a, i1b, i1c, i2a, i2b, i2c, unkc, o1a, unkd, o2a, unk3, o3a) <->{qi}{qmax} H_3(unka, i1a, i1b, i1c, i2a, i2b, i2c, unkc, o1a, unkd, o2a, unke, o3a) + W(i1b, i1c, i2a)
+    | rxn Signal(unkb, i2a, i2b, i2c) + H_3(unka, i1a, i1b, i1c, i2a, i2b, i2c, unkc, o1a, unkd, o2a, unke, o3a) ->{qmax} Waste1_bi(unka, unkb, i1a, i1b, i1c, i2a, i2b, i2c) + P_3(i2b, i2c, unkc, o1a, unkd, o2a, unke, o3a)
+    | rxn P_3(i2b, i2c, unkc, o1a, unkd, o2a, unke, o3a) + T_3(i2c, unkc, o1a, o1b, o1c, unkd, o2a, o2b, o2c, unke, o3a, o3b, o3c) ->{qmax} Waste2_3(i2b, i2c, unkc, o1a, unkd, o2a, unke, o3a) + Signal(unkc, o1a, o1b, o1c) + Signal(unkd, o2a, o2b, o2c) + Signal(unke, o3a, o3b, o3c)
+)
+
+
+(* Buffer module *)
+def LS(ia, ib, ic, d) = {ia^*}[ib ic^ d^]
+def BS(ib, ic, d) = <ib ic^ d^>
+
+(* Intermediate states *)
+def HS(unki, ia, ib, ic, d) = <unki>[ia^ ib ic^]{d^*}
+
+def Buff(
+    qs, qmax, Cmax, Cii, d,
+    unki, ia, ib, ic
+) = (
+      Cii * Signal(unki, ia, ib, ic)
+    | Cmax * LS(ia, ib, ic, d)
+    | Cmax * BS(ib, ic, d)
+    | rxn Signal(unki, ia, ib, ic) + LS(ia, ib, ic, d) <->{qs}{qmax} HS(unki, ia, ib, ic, d) + BS(ib, ic, d)
+)
+
+(* Degradation reactions *)
+def A_e_0(qi, CiA, Cmax, unki, ia, ib, ic) = new unko new oa (
+      CiA  * Signal(unki, ia, ib, ic)
+    | Cmax * G_1(ia, ib, ic, unko, oa)
+    | rxn Signal(unki, ia, ib, ic) + G_1(ia, ib, ic, unko, oa) ->{qi} Waste1_uni(unki, ia, ib, ic) + P_1(ib, ic, unko, oa)
+)
+
+def ApB_e_0(
+    qi, qmax, CiA, CiB, Cmax,
+    unka, i1a, i1b, i1c,
+    unkb, i2a, i2b, i2c
+) = new unko new oa (
+      CiA  * Signal(unka, i1a, i1b, i1c)
+    | CiB  * Signal(unkb, i2a, i2b, i2c)
+    | Cmax * L_1(i1a, i1b, i1c, i2a, i2b, i2c, unko, oa)
+    | Cmax * W(i1b, i1c, i2a)
+    | rxn Signal(unka, i1a, i1b, i1c) + L_1(i1a, i1b, i1c, i2a, i2b, i2c, unko, oa) <->{qi}{qmax} H_1(unka, i1a, i1b, i1c, i2a, i2b, i2c, unko, oa) + W(i1b, i1c, i2a)
+    | rxn Signal(unkb, i2a, i2b, i2c) + H_1(unka, i1a, i1b, i1c, i2a, i2b, i2c, unko, oa) ->{qmax} Waste1_bi(unka, unkb, i1a, i1b, i1c, i2a, i2b, i2c) + P_1(ib, ic, unko, oa)
+)
+
+(* Formation reactions *)
+(* These reaction get unstable when G_1, G_2 or G_3 run out *)
+def r0_e_A(
+    qi, qmax, CiA, Cmax,
+    unko, oa, ob, oc
+) = new unki new ia new ib new ic (
+      CiA  * Signal(unko, oa, ob, oc)
+    | Cmax * G_1(ia, ib, ic, unko, oa)
+    | Cmax * T_1(ic, unko, oa, ob, oc)
+    | rxn G_1(ia, ib, ic, unko, oa) ->{qi} Waste1_uni(unki, ia, ib, ic) + P_1(ib, ic, unko, oa)
+    | rxn P_1(ib, ic, unko, oa) + T_1(ic, unko, oa, ob, oc) ->{qmax} Waste2_1(ib, ic, unko, oa) + Signal(unko, oa, ob, oc)
+)
+
+def r0_e_ApB(
+    qi, qmax, CiA, CiB, Cmax,
+    unko1, o1a, o1b, o1c,
+    unko2, o2a, o2b, o2c
+) = new unki new ia new ib new ic (
+      CiA  * Signal(unko1, o1a, o1b, o1c)
+    | CiB  * Signal(unko2, o2a, o2b, o2c)
+    | Cmax * G_2(ia, ib, ic, unko1, o1a, unko2, o2a)
+    | Cmax * T_2(ic, unko1, o1a, o1b, o1c, unko2, o2a, o2b, o2c)
+    | rxn G_2(ia, ib, ic, unko1, o1a, unko2, o2a) ->{qi} Waste1_uni(unki, ia, ib, ic) + P_2(ib, ic, unko1, o1a, unko2, o2a)
+    | rxn P_2(ib, ic, unko1, o1a, unko2, o2a) + T_2(ic, unko1, o1a, o1b, o1c, unko2, o2a, o2b, o2c) ->{qmax} Waste2_2(ib, ic, unko1, o1a, unko2, o2a) + Signal(unko1, o1a, o1b, o1c) + Signal(unko2, o2a, o2b, o2c)
+)
+
+def r0_e_ApBpC(
+    qi, qmax, CiA, CiB, CiC, Cmax,
+    unko1, o1a, o1b, o1c,
+    unko2, o2a, o2b, o2c,
+    unko3, o3a, o3b, o3c
+) = new unki new ia new ib new ic (
+      CiA  * Signal(unko1, o1a, o1b, o1c)
+    | CiB  * Signal(unko2, o2a, o2b, o2c)
+    | CiC  * Signal(unko3, o3a, o3b, o3c)
+    | Cmax * G_3(ia, ib, ic, unko1, o1a, unko2, o2a, unko3, o3a)
+    | Cmax * T_3(ic, unko1, o1a, o1b, o1c, unko2, o2a, o2b, o2c, unko3, o3a, o3b, o3c)
+    | rxn G_3(ia, ib, ic, unko1, o1a, unko2, o2a, unko3, o3a) ->{qi} Waste1_uni(unki, ia, ib, ic) + P_3(ib, ic, unko1, o1a, unko2, o2a, unko3, o3a)
+    | rxn P_3(ib, ic, unko1, o1a, unko2, o2a, unko3, o3a) + T_3(ic, unko1, o1a, o1b, o1c, unko2, o2a, o2b, o2c, unko3, o3a, o3b, o3c) ->{qmax} Waste2_3(ib, ic, unko1, o1a, unko2, o2a, unko3, o3a) + Signal(unko1, o1a, o1b, o1c) + Signal(unko2, o2a, o2b, o2c) + Signal(unko3, o3a, o3b, o3c)
+)
+
+
+def Cmax = 1e+06
+def qmax = 1000
+def CisA = 0.0
+def CisB = 0.0
+def CisC = 0.0
+def CisD = 1000.0
+def CisE = 0.0
+def CisF = 0.0
+def CisG = 1000.0
+def CisH = 0.0
+
+def k1 = 1.00000010000001e-05
+def k2 = 1.00000010000001e-07
+def k3 = 0.000100000010000001
+def kb1 = 0.000100000010000001
+
+def sA() = (Signal(d1, d2, d3, d4))
+def sB() = (Signal(d5, d6, d7, d8))
+def sC() = (Signal(d9, d10, d11, d12))
+def sD() = (Signal(d13, d14, d15, d16))
+def sE() = (Signal(d17, d18, d19, d20))
+def sF() = (Signal(d21, d22, d23, d24))
+def sG() = (Signal(d25, d26, d27, d28))
+def sH() = (Signal(d29, d30, d31, d32))
+
+
+def CisA = CisA/1.0
+def CisB = CisB/1.0
+def CisC = CisC/1.0
+def CisD = CisD/2.0
+def CisE = CisE/2.0
+def CisF = CisF/1.0
+def CisG = CisG/2.0
+def CisH = CisH/3.0
+
+(
+
+r0_e_ApBpC(
+    k1, qmax, CisA, CisB, CisC, Cmax,
+    d1, d2, d3, d4,
+    d5, d6, d7, d8,
+    d9, d10, d11, d12
+) |
+A_e_BpCpD(
+    k2, qmax, CisD, CisE, CisE, CisF, Cmax,
+    d13, d14, d15, d16,
+    d17, d18, d19, d20,
+    d17, d18, d19, d20,
+    d21, d22, d23, d24
+) |
+ApB_e_CpDpE(
+    k3, qmax, CisG, CisG, CisH, CisH, CisH, Cmax,
+    d25, d26, d27, d28,
+    d25, d26, d27, d28,
+    d29, d30, d31, d32,
+    d29, d30, d31, d32,
+    d29, d30, d31, d32
+) |
+Buff(
+    kb1, qmax, Cmax, CisD, d33,
+    d13, d14, d15, d16
+)
+
+)
