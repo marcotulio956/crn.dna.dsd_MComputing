@@ -577,6 +577,16 @@ Then start a shell inside it with:
 
 ```bash
 docker run --rm -it -v "$PWD":/workspaces/dnar -w /workspaces/dnar -d --name dnar-dev dnar-dev bash 
+# for attached, remove <-d>
+```
+
+To attach the shell:
+
+```bash
+docker exec -it dnar-dev bash
+# or
+docker attach dnar-dev
+
 ```
 
 Or simply open interactive R:
@@ -593,6 +603,23 @@ devtools::load_all('.')
 
 For the Julia-backed solver path, the container already has Julia on `PATH`, so `diffeqr::diffeq_setup()` works from within R.
 
+## Running Scripts
+
+For the script in context a shortkey is available once the ```.vscode/launch.json``` is set up as following:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run current R file in Docker (interactive)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "docker exec -it -w /workspaces/dnar dnar-dev R --no-save -e \"source('/workspaces/dnar/${relativeFile}')\""
+    }
+  ]
+}
+```
 
 ## References
 
