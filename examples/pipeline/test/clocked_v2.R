@@ -95,8 +95,8 @@ ki <- list(
 
 ## An arbitrary-time snapshot request, using the newly-patched
 ## `events` argument (definite-time orchestration):
-snap_time <- 47
-events <- data.frame(time = snap_time, species = "SNAP", amount = 1)
+snap_time <- 60
+events <- data.frame(time = snap_time, species = "SNAP", amount = 100)
 
 ## ================================================================
 ## HOW TO GENERALIZE (mirrors the pure-CRN version's notes)
@@ -118,28 +118,30 @@ events <- data.frame(time = snap_time, species = "SNAP", amount = 1)
 ## ================================================================
 
 
-det <- react2(
-  species = species,
-  ci = ci,
-  reactions = reactions,
-  ki = ki,
-  t = seq(0, 100, by = 0.1),
-  forced_concentrations = NULL,
-  verbose = FALSE
-)
+# det <- react2_patched(
+#   species = species,
+#   ci = ci,
+#   reactions = reactions,
+#   ki = ki,
+#   t = seq(0, 100, by = 0.1),
+#   forced_concentrations = NULL,
+#   verbose = FALSE
+# )
 
-sto <- react_stochastic_frates(
+sto <- react_stochastic_frates_events(
   species = species,
   ci = ci,
   reactions = reactions,
   ki = ki,
-  t = seq(0, 100, by = 0.1),
+  t = seq(0, 50, by = 0.1),
   forced_concentrations = NULL,
-  seed = 1234,
+  seed = 1231,
   verbose = FALSE,
+  volume = 100,
   events = events
 )
 
-plot_behavior(det, species = c("CLK", "CYCLE", "FIRE", "S", "A", "SNAP", "Ap"), chart_title = "Det Clocked / pipelined CRN v2")
+# plot_behavior(det, species = c("CLK", "CYCLE", "FIRE", "S", "A", "SNAP", "Ap"), chart_title = "Det Clocked / pipelined CRN v2")
 
-plot_behavior(sto, species = c("CLK", "CYCLE", "FIRE", "S", "A", "SNAP", "Ap"), chart_title = "Sto Clocked / pipelined CRN v2")
+# plot_behavior(sto, species = c("CLK", "CYCLE", "FIRE", "S", "A", "SNAP", "Ap"), chart_title = "Sto Clocked / pipelined CRN v2")
+plot_behavior(sto, species = c("CLK", "CYCLE", "FIRE", "S"), chart_title = "Sto Clocked / pipelined CRN v2")
