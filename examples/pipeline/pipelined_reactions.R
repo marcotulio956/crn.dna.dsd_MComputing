@@ -196,15 +196,27 @@ events <- data.frame(time = snap_time, species = "SNAP", amount = 1)
 ## that is actually a legitimate CRN.
 ## ================================================================
 
-result_crn <- react2(
-  species   = circuit$species,
-  ci        = circuit$ci,
+# result_crn <- react2(
+#   species   = circuit$species,
+#   ci        = circuit$ci,
+#   reactions = circuit$reactions,
+#   ki        = circuit$ki,
+#   t         = timing,
+#   #engine = 'diffeqr',
+#   verbose = FALSE,
+#   forced_concentrations =  
+#     list(
+#       S = function(t) square_input(t, amplitude = 100)
+#     )
+# )
+
+result_sto <- react_stochastic_frates_events(
+  species = circuit$species,
+  ci = circuit$ci,
   reactions = circuit$reactions,
-  ki        = circuit$ki,
-  t         = timing,
-  #engine = 'diffeqr',
-  verbose = FALSE,
-  forced_concentrations =  
+  ki = circuit$ki,
+  t = timing,
+  forced_concentrations = 
     list(
       S = function(t) square_input(t, amplitude = 100)
     )

@@ -26,7 +26,7 @@ pulse_input <- function(t, time = 5, width = 5, amplitude = 10) {
   return(pmax(0, concentration))
 }
 
-square_input <- function(t, period = 10, pulse_width = 5, amplitude = 10) {
+square_input <- function(t, period = 10, pulse_width = period, amplitude = 10) {
   # Determine the position within the current repeating period
   time_in_period <- t %% period
   

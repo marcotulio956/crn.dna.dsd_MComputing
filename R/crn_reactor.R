@@ -1,3 +1,5 @@
+source("R/sto_reactor.R")
+
 # DNAr is a program used to simulate formal Chemical Reaction Networks
 # and the ones based on DNA.
 # Copyright (C) 2017  Daniel Kneipp <danielv[at]dcc[dot]ufmg[dot]com[dot]br>

@@ -579,3 +579,8 @@ expand_species <- function(species, stoichiometry) {
         })
     )
 }
+
+add_rxn <- function(rxn_str, rate_val) {
+    reactions[[length(reactions) + 1]] <<- rxn_str
+    ki[[length(ki) + 1]] <<- rate_val
+  }

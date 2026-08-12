@@ -165,7 +165,7 @@ plot_behavior <- function(
             species_dotted <- setdiff(species_dotted, specie)
         }
     }
-    pdf(NULL)
+    # pdf(NULL)
     g <- ggplot2::ggplot() +
         ggplot2::theme_minimal(base_size = 18) +
         ggplot2::labs(x = x_label, y = y_label, color = legend_name) +
