@@ -25,40 +25,40 @@ library(ggplot2) # plot()
 library(dplyr) # mutate()
 
 behaviours <- list(
-  'Overdamped' = c(R = 2.5, L = 1, C = 1), 
-  'Critically damped' = c(R = 2, L = 1, C = 1),
-  'Underdamped' = c(R = 1.18, L = 1.5, C = 1.5)
-
+  'O' = c(R = 2.5, L = 1, C = 1), 
+  'C' = c(R = 2, L = 1, C = 1),
+  'U' = c(R = 1.18, L = 1.5, C = 1.5)
 )
 
 init_p_values <- list(
-  'Overdamped' = c(
+  'O' = c(
     a1 = 9.5645737, a2 = 0.2892851, a3 = 9.5628290, a4 = 19.1258191,
     a5 = 9.5627359, a6 = 4.7823812, a7 = 0.1173948, a8 = 101.7993858
   ),
-  'Critically damped' = c(
+  'C' = c(
     a1 = 9.9977977, a2 = 0.2470188, a3 = 10.0000000, a4 = 19.9945977,
     a5 = 9.9972182, a6 = 4.9984647, a7 = 0.1158029, a8 = 106.1014152
   ),
-  'Underdamped' = c(
+  'U' = c(
     a1 = 1.9298698, a2 = 1.5563071, a3 = 4.7412489, a4 = 9.3631423,
     a5 = 4.6948411, a6 = 0.6383476, a7 = 0.5079602, a8 = 108.4715251
   )
 )
 
-regime <- 'Underdamped'# 'Overdamped' or Critically damped or Underdamped
-
-params <- behaviours[[regime]]
-R <- params["R"]
-L <- params["L"]
-C <- params["C"]
-
-init_p <- init_p_values[[regime]]
 
 requireNamespace('diffeqr',quietly = TRUE)
 solver <- 'diffeqr'
   
-Make_Generic <- function(timing) {
+Make_RLC <- function(timing, regime) {
+  # regime <- 'Underdamped'# 'Overdamped' or Critically damped or Underdamped
+
+  params <- behaviours[[regime]]
+  R <- params["R"]
+  L <- params["L"]
+  C <- params["C"]
+
+  init_p <- init_p_values[[regime]]
+
   circuit <- make_circuit(timing)
   
   # - Dig and Analog
@@ -158,101 +158,47 @@ t0 = 0
 t1 = 40
 points = (t1 - t0) * 400 # * 80 # Using 50 time points
 timing  <- seq(t0, t1, length.out = points) # Using 50 time points
-circuit <- Make_Generic(timing)
 
-result_crn <- react2(
-  species = circuit$species,
-  ci = circuit$ci,
-  reactions = circuit$reactions,
-  ki = circuit$ki,
-  t = circuit$t,
-  engine = solver,
-  verbose = FALSE
-)
-print(result_crn)
-result_crn <- result_crn[, order(names(result_crn))]
+behavior <- data.frame(time = timing)
 
-expected_value = 10
-minimum = expected_value * 0.95
-maximum = expected_value * 1.05
-gate_number = 1
+for (regime in names(behaviours)) {
+  params <- behaviours[[regime]]
+  R <- params["R"]
+  L <- params["L"]
+  C <- params["C"]
+
+  circuit <- Make_RLC(timing, regime)
 
 
+  cat(sprintf("Simulating %s RLC circuit...\n", regime))
+  result <- react2(
+    species = circuit$species,
+    ci = circuit$ci,
+    reactions = circuit$reactions,
+    ki = circuit$ki,
+    t = circuit$t,
+    engine = solver,
+    verbose = FALSE
+  )
 
-# for (col_name in names(result_crn)) {
-#   if (grepl("_p$", col_name)) {
-#     # Get base name (remove '_p')
-#     base_name <- sub("_p$", "", col_name)
-#     neg_col <- paste0(base_name, "_n")
-    
-#     # Ensure the corresponding _n column exists
-#     if (neg_col %in% names(result_crn)) {
-#       # Calculate the max and min of the difference (_p - _n)
-#       diff_vals <- result_crn[[col_name]] - result_crn[[neg_col]]
-#       max_val <- max(diff_vals, na.rm = TRUE)
-#       min_val <- min(diff_vals, na.rm = TRUE)
-      
-#       # Avoid division by zero
-#       if (max_val != min_val) {
-#         scale_value <- 1 / (max_val - min_val)
-#       } else {
-#         scale_value <- 1  # or 0, depending on how you want to handle constant values
-#       }
-      
-#       # Apply the normalization
-#       result_crn[[base_name]] <- scale_value * diff_vals
-#     }
-#   }
-# }
+  # Keep one tabular behavior object so plot_behavior can subset named columns.
+  # The input source is the same across regimes, so store it once.
+  if (!"vc_in" %in% names(behavior)) {
+    behavior[["vc_in"]] <- result[, "v1p"]
+  }
+  # all_result[[jn("i_",regime)]] <- result[, "rlcol_ip"] - result[, "rlcol_in"]
+  behavior[[jn("vc_",regime)]] <- result[, "rlcol_vcp"] - result[, "rlcol_vcn"] 
 
-simRLC <- simulate_sRLC_voltage_source(
-  timing, result_crn[['v1p']], R, L, C
-)
+  simRLC <- simulate_sRLC_voltage_source(
+    timing, result[['v1p']], R, L, C
+  )
 
-#simVcc <- simulate_Vcc(timing)
-#result_crn['Vcc'] <- simVcc
+  behavior[[jn("V(C)_",regime)]] <- simRLC$capacitor_voltage
+  # all_result[[jn("I(L)_",regime)]] <- simRLC$inductor_current
 
-vc_scale <- 1
-# result_crn['rlcol_vc'] <- vc_scale * ( result_crn['rlcl_state1_p'] - result_crn['rlcl_state1_n'])
-result_crn['rlcol_vc'] <- vc_scale * ( result_crn['rlcol_vcp'] - result_crn['rlcol_vcn'])
- 
+  # assign(paste0("result_", gsub(" ", "_", regime)), result)
+}
 
-i_scale <- 1
-# result_crn['rlcol_i'] <- i_scale * (result_crn['rlcl_state2_p'] - result_crn['rlcl_state2_n'])
-result_crn['rlcol_i'] <- i_scale * (result_crn['rlcol_ip'] - result_crn['rlcol_in'])
-
-
-### Plot intenal gates
-#state1_scale <- 0.01
-#state2_scale <- 0.01
-# result_crn['rlcl_mul1'] <- result_crn['rlcl_mul1_p'] - result_crn['rlcl_mul1_n']
-# result_crn['rlcl_add3_1'] <- result_crn['rlcl_add3_1_p_carry'] - result_crn['rlcl_add3_1_n_carry']
-# result_crn['rlcl_add3_2'] <- result_crn['rlcl_add3_2_p_carry'] - result_crn['rlcl_add3_2_n_carry']
-# result_crn['rlcl_mul2'] <- result_crn['rlcl_mul2_p'] - result_crn['rlcl_mul2_n']
-# result_crn['rlcl_mul3'] <- result_crn['rlcl_mul3_p'] - result_crn['rlcl_mul3_n']
-# result_crn['rlcl_mul4'] <- result_crn['rlcl_mul4_p'] - result_crn['rlcl_mul4_n']
-#result_crn['rlcl_state1'] <- state1_scale * ( result_crn['rlcl_state1_p'] - result_crn['rlcl_state1_n'])
-#result_crn['rlcl_state2'] <- state2_scale * ( result_crn['rlcl_state2_p'] - result_crn['rlcl_state2_n'])
-# result_crn['l_delay1'] <- 0.1 * (result_crn['rlcl_delay1_p'] - result_crn['rlcl_delay1_n'])
-# result_crn['l_delay2'] <- 0.1 * ( result_crn['rlcl_delay2_p'] - result_crn['rlcl_delay2_n'])
-# result_crn['l_consume1'] <- result_crn['rlcl_consume1_p'] - result_crn['rlcl_consume1_n']
-# result_crn['l_consume2'] <- result_crn['rlcl_consume2_p'] - result_crn['rlcl_consume2_n']
-# result_crn['l_scaler1'] <- result_crn['rlcl_scaler1_p'] - result_crn['rlcl_scaler1_n']
-# result_crn['l_scaler2'] <- result_crn['rlcl_scaler2_p'] - result_crn['rlcl_scaler2_n']
-
-# Result 1 : Series RLC circuit simulation with Voltage Source
-result_crn['V(C)'] <- 1 * simRLC$capacitor_voltage
-result_crn['I(L)'] <- 1 * simRLC$inductor_current
-#result_crn['sum_dx1'] <- 0.01 * simRLC$sum_dx1
-#result_crn['sum_dx2'] <- 0.01 * simRLC$sum_dx2
-#result_crn['V(S)'] <- 1 * simRLC$source_voltage
-#result_crn['V(R)'] <- 1 * simRLC$resistor_voltage
-#result_crn['V(L)'] <- 1 * simRLC$inductor_voltage
-
-#true_vc <- simRLC$capacitor_voltage
-#true_il <- simRLC$inductor_current
-#crn_vc <- result_crn['rlcol_vc']
-#crn_il <- result_crn['rlcol_i']
 
 # Compute the sum of squared errors over all time points:
 #SSE_vc <- sum( (crn_vc - true_vc)^2 )
@@ -261,27 +207,22 @@ result_crn['I(L)'] <- 1 * simRLC$inductor_current
 #cat("totalerror= ", total_error, "(", SSE_vc, "+", SSE_il, ')\n')
 
 
-Plot_behavior_circuit(
-  result_crn, circuit, gate_number, minimum, maximum,
-  #plot_species=c('V(S)', 'V(C)', 'I(L)'), # show results 1: 'V(S)', 'V(C)', 'I(L)', 'V(R)', 'V(L)'
-  #plot_species=c('v1p', 'rlcol_vc', 'rlcol_i'), # show model 'v1p', 'rlcol_vc', 'rlcol_i'
-  #  plot_species=c('v1p', 'rlcol_vc', 'rlcol_i', 'rlcl_mul1_p', 'V(C)', 'I(L)'), # show comparision
-  plot_species= c('v1p', 'rlcol_i', 'rlcol_vc'), # c('v1p','rlcol_i', 'rlcol_vc', 'rlcl_state1', 'rlcl_state2', 'rlcl_add3_2', 'rlcl_mul2', 'rlcl_mul3', 'rlcl_mul4',  'l_consume1', 'l_consume2', 'l_scaler1', 'l_scaler2', 'l_delay1', 'l_delay2'
-  plot_species_dotted=c('V(C)','I(L)' ), #
-# 
-  chart_title = sprintf("%s RLC Response DSD Vin=10[V] R=%s[Ω] L=%s[H] C=%s[F]\n", regime, R, L, C), # "RLC Step Response 
-  timing
+plot_behavior(
+  behavior, 
+  title = sprintf("RLC Response DSD Vin=10[V]\n"), # "RLC Step Response 
+  species = c('vc_in', 'vc_O', 'vc_C', 'vc_U'),
+  species_dotted= c('V(C)_O', 'V(C)_C', 'V(C)_U'),
 )
 
-metrics <- analyze_transient_metrics(
-  timing = timing,
-  vc_model = result_crn[['rlcol_vc']],
-  vc_sim = simRLC$capacitor_voltage,
-  t0 = 10,
-  t1 = 25
-)
+# metrics <- analyze_transient_metrics(
+#   timing = timing,
+#   vc_model = result_crn[['rlcol_vc']],
+#   vc_sim = simRLC$capacitor_voltage,
+#   t0 = 10,
+#   t1 = 25
+# )
 
-print(metrics)
+# print(metrics)
 
 # Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, plot_species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))
 

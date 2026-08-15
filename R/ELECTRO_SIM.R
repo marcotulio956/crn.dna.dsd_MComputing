@@ -34,7 +34,7 @@ simulate_sRC_voltage_source <- function(timing, source_voltage, resistance, capa
 simulate_sRL_voltage_source <- function(timing, source_voltage, resistance, inductance) {
   n <- length(timing)
   inductor_current <- numeric(n)
-  inductor_current[1] <- 0
+inductor_current[1] <- 0
 
   # di/dt = (v_in - R*i) / L
   for (i in 1:(n - 1)) {

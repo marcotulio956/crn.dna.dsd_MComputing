@@ -130,7 +130,7 @@ fte_theme <- function() {
 
 plot_behavior <- function(
     behavior,
-    chart_title = "test",
+    title = "test",
     species = NULL,
     species_dotted = NULL,
     x_label = 'Time',
@@ -170,7 +170,7 @@ plot_behavior <- function(
         ggplot2::theme_minimal(base_size = 18) +
         ggplot2::labs(x = x_label, y = y_label, color = legend_name) +
         ggplot2::scale_color_brewer(palette = "Dark2") +
-        ggplot2::ggtitle(chart_title)
+        ggplot2::ggtitle(title)
 
     # Solid lines
     if (!is.null(species)) {
@@ -213,7 +213,7 @@ plot_behavior <- function(
     }
 
     if (!is.null(save_file_name)) {
-        ggplot2::ggsave(paste0(save_file_name, format(Sys.time(), "%Y-%m-%d_%H-%M-%S"), ".png"), plot=g, dpi = 300, width = 6, height = 4.5, create.dir = TRUE)
+        ggplot2::ggsave(paste0(save_file_name, format(Sys.time(), "%Y-%m-%d_%H-%M-%S"), ".png"), bg = white, plot=g, dpi = 300, width = 6, height = 4.5, create.dir = TRUE)
     }
 
     return(g)
