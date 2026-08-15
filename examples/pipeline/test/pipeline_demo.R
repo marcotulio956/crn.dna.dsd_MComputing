@@ -1,8 +1,14 @@
 jn <- function(...) paste0(...)
-source("reconstructed_helpers.R")
-source("react_stochastic_frates_patched.R")
-source("PIPELINE_LIB.R")
+# source("reconstructed_helpers.R")
+source('R/parser.R')
+source('R/util_functions.R')
+source('R/crn_reactor.R')
+source('R/4domain_reactor.R')
+source('R/io.R')
 
+source('R/GATE_LIB.R')
+source('R/forced_concentrations.R')
+source('examples/pipeline/test/PIPELINE_LIB.R')
 ## ================================================================
 ## A 3-deep pipeline -- READ / COMPUTE / WRITE -- as three ordinary,
 ## non-composable sequential reactions, each gated to its own phase
@@ -52,9 +58,14 @@ circuit <- Combine_Circuits(circuit, zoh)
 events  <- Make_Periodic_Events("SNAP", period = period, t_start = period, t_end = 150)
 
 tvec <- seq(0, 150, by = 0.02)
-out <- react_stochastic_frates(circuit$species, circuit$ci, circuit$reactions, circuit$ki,
-                                tvec, events = events, seed = 7)
-write.csv(out, "pipeline_demo_trajectory.csv", row.names = FALSE)
+out_sto <- react_stochastic_frates_events(circuit$species, circuit$ci, circuit$reactions, circuit$ki,
+                                tvec, volume = 10, events = events, seed = 7)
+
+out_det <-react2_patched_events(circuit$species, circuit$ci, circuit$reactions, circuit$ki,
+                                                 tvec, events = events)
+# write.csv(out, "pipeline_demo_trajectory.csv", row.names = FALSE)
+Plot_behavior(out_sto, circuit, specie = c("IN", "R1", "R2", "SNAP"," READ_PH", "SNAP_done" ))
+# Plot_behavior(out_det, circuit, specie = c("IN", "R1", "R2", "OUT", "SNAP"," READ_PH", "SNAP_done", "OUT_hold"))
 
 cat("Final state:\n")
-print(tail(out, 1))
+print(tail(out_sto, 1))
