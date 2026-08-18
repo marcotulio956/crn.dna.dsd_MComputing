@@ -196,19 +196,22 @@ events <- data.frame(time = snap_time, species = "SNAP", amount = 1)
 ## that is actually a legitimate CRN.
 ## ================================================================
 
-# result_crn <- react2(
-#   species   = circuit$species,
-#   ci        = circuit$ci,
-#   reactions = circuit$reactions,
-#   ki        = circuit$ki,
-#   t         = timing,
-#   #engine = 'diffeqr',
-#   verbose = FALSE,
-#   forced_concentrations =  
-#     list(
-#       S = function(t) square_input(t, amplitude = 100)
-#     )
-# )
+result_crn <- react2_patched_events(
+  species   = circuit$species,
+  ci        = circuit$ci,
+  reactions = circuit$reactions,
+  ki        = circuit$ki,
+  t         = timing,
+  #engine = 'diffeqr',
+  verbose = FALSE,
+  forced_concentrations =
+    list(
+      S = function(t) square_input(t, amplitude = 100)
+    )
+)
+
+plot_behavior(result_crn)
+
 
 result_sto <- react_stochastic_frates_events(
   species = circuit$species,
@@ -222,38 +225,8 @@ result_sto <- react_stochastic_frates_events(
     )
 )
 
-# Pass it directly into sto react
-# results_tau <- react_tau_leap_forced(
-#   circuit$species,
-#   circuit$ci,
-#   circuit$reactions,
-#   circuit$ki,
-#   circuit$t,
-#   forced_concentrations = list(S = noisy_nutrient_func) # Inject the OU process here
-# )
-# 
-# results_gssa <- react_stochastic_forced(
-#   circuit$species,
-#   circuit$ci,
-#   circuit$reactions,
-#   circuit$ki,
-#   circuit$t,
-#   forced_concentrations = list(S = noisy_nutrient_func), # Inject the OU process here
-#   verbose = TRUE,
-#   volume = 1
-# )
 
-plot_behavior(result_crn)
+plot_behavior(result_sto)
 
-# g1 <- plot_behavior(results_tau,  circuit$species)
-# g1
-# g2 <- plot_behavior(results_gssa, circuit$species)
-# g2
 
-# circuit_dsd <- update_crn_4domain(circuit)
-# results_dsd <- React_4domain_circuit(circuit_dsd)
-# 
-# 
-# g3 <- plot_behavior(results_dsd$behavior, circuit_dsd$species)
-# g3
 

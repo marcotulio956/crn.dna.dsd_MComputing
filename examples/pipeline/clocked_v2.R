@@ -141,7 +141,4 @@ sto <- react_stochastic_frates_events(
   events = events
 )
 
-# plot_behavior(det, species = c("CLK", "CYCLE", "FIRE", "S", "A", "SNAP", "Ap"), chart_title = "Det Clocked / pipelined CRN v2")
-
-# plot_behavior(sto, species = c("CLK", "CYCLE", "FIRE", "S", "A", "SNAP", "Ap"), chart_title = "Sto Clocked / pipelined CRN v2")
-plot_behavior(sto, species = c("CLK", "CYCLE", "FIRE", "S"), chart_title = "Sto Clocked / pipelined CRN v2")
+plot_behavior(sto, species = c("CLK", "CYCLE", "FIRE", "S"), title = "Sto Clocked / pipelined CRN v2")

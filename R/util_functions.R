@@ -1,8 +1,8 @@
 library(ggplot2) # plot()
 library(dplyr) # mutate()
 
-React_circuit <- function(circuit, forced_concentrations, engine = 'desolve') {
-  return(react2(
+React_circuit <- function(circuit, forced_concentrations = NULL, engine = 'desolve') {
+  return(react2_patched_events(
     species   = circuit$species,
     ci        = circuit$ci,
     reactions = circuit$reactions,
@@ -18,7 +18,7 @@ React_circuit <- function(circuit, forced_concentrations, engine = 'desolve') {
   ))
 }
 
-React_4domain_circuit <- function(circuit) {
+React_4domain <- function(circuit, forced_concentrations = NULL, engine = 'desolve') {
   return(react_4domain(
     species   = circuit$species,
     ci        = circuit$ci,
@@ -28,7 +28,9 @@ React_4domain_circuit <- function(circuit) {
     cmax      = 1e7, # 1e-4  # starting concentration of auxiliary complexes Gi and Ti
     alpha     = 1,   # DSD timescale versus CRN
     beta      = 1,   # DSD concentration scale versus CRN
-    t         = circuit$t
+    t         = circuit$t,
+    forced_concentrations = forced_concentrations,
+    engine = engine
   ))
 }
 
@@ -66,13 +68,21 @@ React_stochastic <-function(circuit, volume = 10, seed = NULL) {
 }
 
 
-Plot_behavior <- function(result, circuit, species = c(), intercept=FALSE, min, max) {
+Plot_behavior <- function(result, circuit, species = c(), species_dotted = c(), title = "", normalize = TRUE, intercept=FALSE, ymin, ymax) {
+  if(normalize==TRUE){
+    # behavior_scaled <- behavior
+    # behavior_scaled[, -1] <- lapply(behavior[, -1], function(x) {
+    #   if(max(x) == min(x)) return(x) # prevent division by zero for constant columns
+    #   (x - min(x)) / (max(x) - min(x))
+    # })
+    # result <- behavior_scaled
+  }
   if(length(species) == 0) {
     species <- circuit$species
   }
-  g <- plot_behavior(result, title = 'test',
+  g <- plot_behavior(result, title = title,
                      species = species,
-                     species_dotted = c(),
+                     species_dotted = species_dotted,
                      x_label     = 'Time (s)',
                      y_label     = 'Concentration (M)',
                      legend_name = 'Species'

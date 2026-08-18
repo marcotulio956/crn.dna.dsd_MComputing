@@ -146,6 +146,21 @@ plot_behavior <- function(
     variable_point_type = FALSE,
     line_types = NULL
 ) {
+    
+# FACETS
+#     library(tidyverse)
+
+# # Reshape data to long format
+# behavior_long <- behavior %>%
+#   pivot_longer(cols = -time, names_to = "variable", values_to = "value")
+
+# # Plot each variable in its own panel with its own scale
+# ggplot(behavior_long, aes(x = time, y = value)) +
+#   geom_line() +
+#   facet_wrap(~ variable, scales = "free_y") +
+#   theme_minimal()
+
+
     geom <- function(keyword, linetype = "solid") {
         switch(keyword,
                'line' = ggplot2::geom_line(size = 1.3, linetype = linetype),

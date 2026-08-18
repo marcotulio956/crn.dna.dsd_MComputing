@@ -1105,8 +1105,6 @@ react2_patched_events <- function(
 }
 
 
-
-
 #' Combine CRNs into one single larger CRN
 #'
 #' Use this function to combine multiple crns into a larger crn which

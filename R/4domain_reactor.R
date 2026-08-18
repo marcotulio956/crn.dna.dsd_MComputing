@@ -435,6 +435,8 @@ react_4domain <- function(
     auto_buffer = TRUE,
     dna_kinetics = NULL,
     verbose = FALSE,
+    forced_concentrations = NULL,
+    engine = 'desolve',
     ...
 ) {
     translated <- translate_4domain_crn(
@@ -453,13 +455,15 @@ react_4domain <- function(
     )
 
     # Run the reaction
-    b <- react2(
+    b <- react2_patched_events(
         species   = translated$species,
         ci        = translated$ci,
         reactions = translated$reactions,
         ki        = translated$ki,
         t         = t,
         verbose   = verbose,
+        forced_concentrations = forced_concentrations,
+        engine = engine,
         ...
     )
 
