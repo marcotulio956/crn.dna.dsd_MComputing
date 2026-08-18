@@ -54,6 +54,91 @@ inductor_current[1] <- 0
   ))
 }
 
+simulate_C_voltage_source <- function(timing, source_voltage, capacitance,
+                                      initial_voltage = 0) {
+  n <- length(timing)
+
+  capacitor_voltage <- numeric(n)
+  capacitor_current <- numeric(n)
+
+  capacitor_voltage[1] <- initial_voltage
+
+  # i_C = C * dV_C/dt
+  # dV_C/dt = i_C / C
+  #
+  # For a voltage source directly connected to an ideal capacitor,
+  # the current depends on dV/dt:
+  # i_C = C * dV_source/dt
+  #
+  # Use forward finite differences.
+  for (i in 1:(n - 1)) {
+    dt <- timing[i + 1] - timing[i]
+
+    dV_dt <- (source_voltage[i + 1] - source_voltage[i]) / dt
+
+    capacitor_voltage[i + 1] <- source_voltage[i + 1]
+    capacitor_current[i] <- capacitance * dV_dt
+  }
+
+  # Current at the last point
+  dt <- timing[n] - timing[n - 1]
+  dV_dt <- (source_voltage[n] - source_voltage[n - 1]) / dt
+  capacitor_current[n] <- capacitance * dV_dt
+
+  return(list(
+    source_voltage = source_voltage,
+    capacitor_voltage = capacitor_voltage,
+    capacitor_current = capacitor_current
+  ))
+}
+
+
+simulate_L_voltage_source <- function(timing, source_voltage, inductance,
+                                      initial_current = 0) {
+  n <- length(timing)
+
+  inductor_current <- numeric(n)
+  inductor_voltage <- numeric(n)
+
+  inductor_current[1] <- initial_current
+
+  # V_L = L * di/dt
+  # di/dt = V_L / L
+  #
+  # For an ideal inductor directly connected to a voltage source:
+  # di/dt = V_source / L
+
+  for (i in 1:(n - 1)) {
+    dt <- timing[i + 1] - timing[i]
+
+    di_dt <- source_voltage[i] / inductance
+
+    inductor_current[i + 1] <-
+      inductor_current[i] + dt * di_dt
+  }
+
+  inductor_voltage <- source_voltage
+
+  return(list(
+    source_voltage = source_voltage,
+    inductor_current = inductor_current,
+    inductor_voltage = inductor_voltage
+  ))
+}
+
+simulate_R_voltage_source <- function(timing, source_voltage, resistance) {
+  n <- length(timing)
+
+  resistor_voltage <- source_voltage
+  resistor_current <- source_voltage / resistance
+
+  return(list(
+    source_voltage = source_voltage,
+    resistor_voltage = resistor_voltage,
+    resistor_current = resistor_current
+  ))
+}
+
 # 2) Parallel RL with Current Source (you already had this)
 simulate_pRL_current_source <- function(timing, source_current, resistance, inductance) {
   n <- length(timing)
