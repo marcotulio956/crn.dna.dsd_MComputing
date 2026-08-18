@@ -35,7 +35,7 @@ ind2$il$voltage_positive <- 'v_in'
 
 l0 <- Make_Circuit_RL(ind$name, ind$il, ind$ol, ind$ic, rate)
 l1 <- Make_Circuit_RL2(ind1$name, ind1$il, ind1$ol, ind1$ic, rate)
-l2 <- Make_Circuit_RL2(ind2$name, ind2$il, ind2$ol, ind2$ic, rate)
+l2 <- Make_Circuit_Pure_Inductor(ind2$name, ind2$il, ind2$ol, ind2$ic, rate)
 
 
 circuit <- make_circuit(timing)
@@ -60,10 +60,10 @@ simL <- simulate_L_voltage_source(
 )
 
 behavior['v_in'] <- behavior[['v_in']]
+
 behavior['V(L)'] <- simRL$inductor_voltage
 behavior['I(R,L)'] <- simRL$current_outupt
 
-behavior['V(Lp)'] <- simL$inductor_voltage
 behavior['I(Lp)'] <- simL$current_outupt
 
 behavior['l0ol_v'] <- ( behavior['l0ol_vp'] - behavior['l0ol_vn'] )
@@ -82,4 +82,4 @@ Plot_behavior(title = title, behavior, circuit, species=c('l0ol_v', 'l0ol_i'), s
 
 Plot_behavior(title = title, behavior, circuit, species=c('l1ol_v', 'l1ol_i'), species_dotted=c('V(L)','I(R,L)'), normalize = FALSE)
 
-Plot_behavior(title = title, behavior, circuit, species=c('l2ol_v', 'l2ol_i'), species_dotted=c('V(Lp)','I(Lp)'), normalize = FALSE)
+Plot_behavior(title = title, behavior, circuit, species=c('l2ol_v', 'l2ol_i'), species_dotted=c('I(Lp)'), normalize = FALSE)

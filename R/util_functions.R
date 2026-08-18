@@ -68,7 +68,7 @@ React_stochastic <-function(circuit, volume = 10, seed = NULL) {
 }
 
 
-Plot_behavior <- function(result, circuit, species = c(), species_dotted = c(), title = "", normalize = TRUE, intercept=FALSE, ymin, ymax) {
+Plot_behavior <- function( title = "", result, circuit, species = c(), species_dotted = c(), normalize = TRUE, intercept=FALSE, ymin, ymax) {
   if(normalize==TRUE){
     behavior_scaled <- behavior
     behavior_scaled[, -1] <- lapply(behavior[, -1], function(x) {

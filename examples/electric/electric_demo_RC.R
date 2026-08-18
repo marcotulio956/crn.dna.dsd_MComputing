@@ -67,7 +67,6 @@ behavior['v_in'] <- behavior[['v_in']]
 behavior['V(C)'] <- simRC$capacitor_voltage
 behavior['I(R,C)'] <- simRC$current_output
 
-behavior['V(Cp)'] <- simC$capacitor_voltage
 behavior['I(Cp)'] <- simC$current_output
 
 behavior['c0ol_v'] <- ( behavior['c0ol_vp'] - behavior['c0ol_vn'] )
@@ -85,10 +84,10 @@ behavior['c3ol_v'] <- (behavior['c3ol_vp'] - behavior['c3ol_vn'] )
 behavior['c3ol_i'] <- (behavior['c3ol_ip'] - behavior['c3ol_in'] )
 
 title <- jn("rate:", rate, " RC:", resistance, ",",capacitance)
-Plot_behavior(title = title, behavior, circuit, species=c('c0ol_v', 'c0ol_i'), species_dotted=c('V(Cp)','I(Cp)'))
-Plot_behavior(title = title, behavior, circuit, species=c('c1ol_v', 'c1ol_i'), species_dotted=c('V(Cp)','I(Cp)'))
+Plot_behavior(title = title, behavior, circuit, species=c('c0ol_v', 'c0ol_i'), species_dotted=c('V(C)','I(C)'))
+Plot_behavior(title = title, behavior, circuit, species=c('c1ol_v', 'c1ol_i'), species_dotted=c('V(C)','I(C)'))
 Plot_behavior(title = title, behavior, circuit, species=c('c2ol_v', 'c2ol_i'), species_dotted=c('V(C)','I(R,C)'))
-Plot_behavior(title = title, behavior, circuit, species=c('c3ol_v', 'c3ol_i'), species_dotted=c('V(Cp)','I(Cp)'))
+Plot_behavior(title = title, behavior, circuit, species=c('c3ol_v', 'c3ol_i'), species_dotted=c('V(C)','I(Cp)'))
 
 # behavior <- React_4domain(circuit, forced_concentrations = forced_concentrations, engine = 'desolve')
 
