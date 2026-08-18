@@ -891,3 +891,90 @@ Make_Circuit_RL <- function(name, species_input, species_output, ic, rate) {
 
   return(gates)
 }
+
+Make_Circuit_RL2 <- function(name, species_input, species_output, ic, rate) {
+  gates <- list()
+
+  # ============================================================
+  # Inductor Model (RL Circuit):
+  # Reorganized to match RC topology to prevent 2nd order delays
+  # V_R = i * R
+  # V_L = V_in - V_R
+  # di/dt = V_L / L
+  # i = Integral(di/dt)
+  # ============================================================
+
+  vr_p <- jn(name, '_vr_p')
+  vr_n <- jn(name, '_vr_n')
+  dummy_0 <- jn(name, '_dummy_0') # Unused input for 3-input adder
+
+  # ------------------------------------------------------------
+  # 1. Resistor Voltage: V_R = i * R
+  # ------------------------------------------------------------
+  g_mul_vrp <- Make_Mul2In_Wang(
+    jn(name, '_mul_vrp'),
+    species_output$current_positive, jn(name, '_R'), vr_p,
+    0, ic$resistance, rate
+  )
+  gates[[length(gates) + 1]] <- g_mul_vrp
+
+  g_mul_vrn <- Make_Mul2In_Wang(
+    jn(name, '_mul_vrn'),
+    species_output$current_negative, jn(name, '_R'), vr_n,
+    0, ic$resistance, rate
+  )
+  gates[[length(gates) + 1]] <- g_mul_vrn
+
+  # ------------------------------------------------------------
+  # 2. Subtraction: V_L = V_in - V_R
+  # Dual rail subtraction: V_Lp = V_inp + V_Rn; V_Ln = V_inn + V_Rp
+  # ------------------------------------------------------------
+  g_add_vlp <- Make_Add3In(
+    jn(name, '_add_vlp'),
+    species_input$voltage_positive, vr_n, dummy_0,
+    species_output$voltage_positive, # Output V_L
+    0, 0, 0, rate
+  )
+  gates[[length(gates) + 1]] <- g_add_vlp
+
+  g_add_vln <- Make_Add3In(
+    jn(name, '_add_vln'),
+    species_input$voltage_negative, vr_p, dummy_0,
+    species_output$voltage_negative, # Output V_L
+    0, 0, 0, rate
+  )
+  gates[[length(gates) + 1]] <- g_add_vln
+
+  # ------------------------------------------------------------
+  # 3. Inductor Derivative: di/dt = V_L * (1/L)
+  # ------------------------------------------------------------
+  di_p <- jn(name, '_di_p')
+  di_n <- jn(name, '_di_n')
+
+  g_mul_dip <- Make_Mul2In_Wang(
+    jn(name, '_mul_dip'),
+    species_output$voltage_positive, jn(name, '_1oL'), di_p,
+    0, 1 / ic$inductance, rate
+  )
+  gates[[length(gates) + 1]] <- g_mul_dip
+
+  g_mul_din <- Make_Mul2In_Wang(
+    jn(name, '_mul_din'),
+    species_output$voltage_negative, jn(name, '_1oL'), di_n,
+    0, 1 / ic$inductance, rate
+  )
+  gates[[length(gates) + 1]] <- g_mul_din
+
+  # ------------------------------------------------------------
+  # 4. Inductor Current Integration: i = Integral(di/dt)
+  # ------------------------------------------------------------
+  g_int_i <- Make_Integrator_OishiYordanov(
+    jn(name, '_int_i'),
+    di_p, di_n,
+    species_output$current_positive, species_output$current_negative,
+    0, 0, rate
+  )
+  gates[[length(gates) + 1]] <- g_int_i
+
+  return(gates)
+}
