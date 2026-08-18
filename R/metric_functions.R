@@ -210,26 +210,145 @@ compare_model_sim <- function(timing,
   )
 }
 
-analyze_transient_metrics <- function(timing, vc_model, vc_sim, t0, t1) {
+analyze_transient_metrics <- function(timing,
+                                      v_in,
+                                      vc_model,
+                                      vc_sim,
+                                      t0,
+                                      t1,
+                                      resistance = NA_real_,
+                                      inductance = NA_real_,
+                                      capacitance = NA_real_) {
 
   idx <- which(timing >= t0 & timing <= t1)
   t_slice <- timing[idx]
+  v_in_slice <- v_in[idx]
   v_model <- vc_model[idx]
   v_sim   <- vc_sim[idx]
 
+  safe_tail_median <- function(x, fraction = 0.1) {
+    x <- x[is.finite(x)]
+    if (length(x) == 0) {
+      return(NA_real_)
+    }
+    n_tail <- max(3, ceiling(length(x) * fraction))
+    stats::median(tail(x, n_tail), na.rm = TRUE)
+  }
+
+  estimate_step <- function(t, vin) {
+    valid_idx <- is.finite(t) & is.finite(vin)
+    t <- t[valid_idx]
+    vin <- vin[valid_idx]
+
+    if (length(t) == 0 || length(vin) == 0) {
+      return(list(step_start_index = 1L, vin_initial = NA_real_, vin_final = NA_real_))
+    }
+
+    vin_initial <- safe_tail_median(head(vin, max(3, ceiling(length(vin) * 0.1))))
+    vin_final <- safe_tail_median(vin)
+    step_mag <- vin_final - vin_initial
+
+    if (!is.finite(step_mag) || abs(step_mag) < 1e-9) {
+      return(list(step_start_index = 1L, vin_initial = vin_initial, vin_final = vin_final))
+    }
+
+    threshold <- vin_initial + 0.05 * step_mag
+    if (step_mag > 0) {
+      start_hits <- which(vin >= threshold)
+    } else {
+      start_hits <- which(vin <= threshold)
+    }
+
+    step_start_index <- if (length(start_hits) > 0) start_hits[1] else 1L
+    list(
+      step_start_index = step_start_index,
+      vin_initial = vin_initial,
+      vin_final = vin_final
+    )
+  }
+
+  crossing_time <- function(t, v, target) {
+    if (length(t) < 2 || length(v) < 2) {
+      return(NA_real_)
+    }
+
+    lower <- v[-length(v)]
+    upper <- v[-1]
+    hits <- which((lower <= target & upper >= target) | (lower >= target & upper <= target))
+    if (length(hits) == 0) {
+      return(NA_real_)
+    }
+
+    i <- hits[1]
+    if (v[i + 1] == v[i]) {
+      return(t[i])
+    }
+
+    t[i] + (target - v[i]) * (t[i + 1] - t[i]) / (v[i + 1] - v[i])
+  }
+
+  safe_relative_error <- function(model_value, sim_value) {
+    # Handled potential div by zero and removed the 0.1 arbitrary cutoff
+    if (!is.finite(model_value) || !is.finite(sim_value) || sim_value == 0) {
+      return(NA_real_)
+    }
+    abs(model_value - sim_value) / abs(sim_value) * 100
+  }
+
+  step_info <- estimate_step(t_slice, v_in_slice)
+  step_start_index <- step_info$step_start_index
+  v_in_final <- step_info$vin_final
+  v_in_initial <- step_info$vin_initial
+
+  target_final <- v_in_final
+
+  # Retained just for reference, but no longer forced into output
+  theoretical_zeta <- if (is.finite(resistance) && is.finite(inductance) && is.finite(capacitance) && inductance > 0 && capacitance > 0) {
+    (resistance / 2) * sqrt(capacitance / inductance)
+  } else {
+    NA_real_
+  }
+
   compute_metrics <- function(t, v) {
-    v_final <- tail(v, 1)
+    if (length(t) == 0 || length(v) == 0) {
+      return(list(
+        peak_time = NA_real_,
+        overshoot = NA_real_,
+        rise_time = NA_real_,
+        settling_time = NA_real_,
+        damping_ratio = NA_real_,
+        final_value = NA_real_
+      ))
+    }
+
+    valid_idx <- is.finite(t) & is.finite(v)
+    t <- t[valid_idx]
+    v <- v[valid_idx]
+
+    if (step_start_index > length(v)) {
+      step_start_index <- 1L
+    }
+
+    v_start <- if (step_start_index > 1L) v[step_start_index - 1L] else v[1]
+    v_final <- target_final
     v_peak <- max(v)
     peak_index <- which.max(v)
     t_peak <- t[peak_index]
-    overshoot <- (v_peak - v_final) / abs(v_final) * 100
+    
+    # Calculate overshoot and cap it at 0 minimum
+    overshoot <- if (is.finite(v_final) && v_final != 0) {
+      ov <- (v_peak - v_final) / abs(v_final) * 100
+      max(0, ov) # Prevents negative overshoot
+    } else {
+      NA_real_
+    }
 
-    t_10 <- tryCatch(approx(v, t, xout = 0.1 * v_final)$y, error = function(e) NA)
-    t_90 <- tryCatch(approx(v, t, xout = 0.9 * v_final)$y, error = function(e) NA)
-    rise_time <- t_90 - t_10
+    t_10 <- crossing_time(t, v, 0.1 * v_final)
+    t_90 <- crossing_time(t, v, 0.9 * v_final)
+    rise_time <- if (is.na(t_10) || is.na(t_90)) NA_real_ else t_90 - t_10
 
     within_bounds <- abs(v - v_final) <= 0.02 * abs(v_final)
-    settling_time <- NA
+    settling_time <- NA_real_
     for (i in seq_along(t)) {
       if (t[i] > t_peak && all(within_bounds[i:length(v)])) {
         settling_time <- t[i]
@@ -237,11 +356,11 @@ analyze_transient_metrics <- function(timing, vc_model, vc_sim, t0, t1) {
       }
     }
 
-    zeta <- if (v_peak > v_final && v_final != 0) {
-      log_dec <- log(v_peak / v_final)
-      log_dec / sqrt(pi^2 + log_dec^2)
-    } else {
-      NA
+    # Estimate empirical damping ratio from overshoot (for underdamped only)
+    zeta_est <- NA_real_
+    if (is.finite(overshoot) && overshoot > 0) {
+      ov_frac <- overshoot / 100
+      zeta_est <- sqrt((log(ov_frac)^2) / (pi^2 + log(ov_frac)^2))
     }
 
     return(list(
@@ -249,35 +368,45 @@ analyze_transient_metrics <- function(timing, vc_model, vc_sim, t0, t1) {
       overshoot = overshoot,
       rise_time = rise_time,
       settling_time = settling_time,
-      damping_ratio = zeta,
-      final_value = v_final
+      damping_ratio = zeta_est, # Returns calculated zeta instead of theoretical
+      final_value = safe_tail_median(v) # Use actual signal final value
     ))
   }
 
   m_model <- compute_metrics(t_slice, v_model)
   m_sim   <- compute_metrics(t_slice, v_sim)
 
-  steady_state_error <- abs(m_model$final_value - m_sim$final_value) / abs(m_sim$final_value) * 100
+  # Calculate Steady-State Error (%) compared to the target step input
+  calc_ss_error <- function(final_val, target) {
+    if (is.finite(final_val) && is.finite(target) && target != 0) {
+      abs(final_val - target) / abs(target) * 100
+    } else {
+      NA_real_
+    }
+  }
+  
+  ss_err_model <- calc_ss_error(m_model$final_value, target_final)
+  ss_err_sim   <- calc_ss_error(m_sim$final_value, target_final)
 
   result <- data.frame(
     Metric = c("Peak Time", "Max Overshoot (%)", "Rise Time", "Settling Time", "Damping Ratio", "Steady-State Error (%)"),
-    Model  = c(m_model$peak_time, m_model$overshoot, m_model$rise_time, m_model$settling_time, m_model$damping_ratio, NA),
-    Sim    = c(m_sim$peak_time,   m_sim$overshoot,   m_sim$rise_time,   m_sim$settling_time,   m_sim$damping_ratio, NA),
+    Model  = c(m_model$peak_time, m_model$overshoot, m_model$rise_time, m_model$settling_time, m_model$damping_ratio, ss_err_model),
+    Sim    = c(m_sim$peak_time,   m_sim$overshoot,   m_sim$rise_time,   m_sim$settling_time,   m_sim$damping_ratio, ss_err_sim),
     AbsError = c(
       abs(m_model$peak_time - m_sim$peak_time),
       abs(m_model$overshoot - m_sim$overshoot),
       abs(m_model$rise_time - m_sim$rise_time),
       abs(m_model$settling_time - m_sim$settling_time),
       abs(m_model$damping_ratio - m_sim$damping_ratio),
-      NA
+      abs(ss_err_model - ss_err_sim) # Replaced hardcoded NA
     ),
     RelError = c(
-      abs(m_model$peak_time - m_sim$peak_time) / abs(m_sim$peak_time) * 100,
-      abs(m_model$overshoot - m_sim$overshoot) / abs(m_sim$overshoot) * 100,
-      abs(m_model$rise_time - m_sim$rise_time) / abs(m_sim$rise_time) * 100,
-      abs(m_model$settling_time - m_sim$settling_time) / abs(m_sim$settling_time) * 100,
-      abs(m_model$damping_ratio - m_sim$damping_ratio) / abs(m_sim$damping_ratio) * 100,
-      steady_state_error
+      safe_relative_error(m_model$peak_time, m_sim$peak_time),
+      safe_relative_error(m_model$overshoot, m_sim$overshoot),
+      safe_relative_error(m_model$rise_time, m_sim$rise_time),
+      safe_relative_error(m_model$settling_time, m_sim$settling_time),
+      safe_relative_error(m_model$damping_ratio, m_sim$damping_ratio),
+      safe_relative_error(ss_err_model, ss_err_sim) # Calculate relative difference in SS error
     )
   )
 

@@ -1,7 +1,7 @@
 library(ggplot2) # plot()
 library(dplyr) # mutate()
 
-React_circuit <- function(circuit, engine = 'desolve') {
+React_circuit <- function(circuit, forced_concentrations, engine = 'desolve') {
   return(react2(
     species   = circuit$species,
     ci        = circuit$ci,
@@ -11,10 +11,10 @@ React_circuit <- function(circuit, engine = 'desolve') {
     engine = engine,
     # engine = 'diffeqr',
     verbose = FALSE,
-    forced_concentrations =  
-      list(
-      #  Ip = Ip_crn_ml_input
-      )
+    forced_concentrations = forced_concentrations
+      # list(
+      # #  Ip = Ip_crn_ml_input
+      # )
   ))
 }
 
@@ -66,9 +66,12 @@ React_stochastic <-function(circuit, volume = 10, seed = NULL) {
 }
 
 
-Plot_behavior <- function(result, circuit, intercept=FALSE, min, max) {
-  g <- plot_behavior(result, chart_title = 'METQ',
-                     species = circuit$species,#c('Vt', 'S1', 'W1', 'U'),#,#circuit$species,
+Plot_behavior <- function(result, circuit, species = c(), intercept=FALSE, min, max) {
+  if(length(species) == 0) {
+    species <- circuit$species
+  }
+  g <- plot_behavior(result, title = 'test',
+                     species = species,
                      species_dotted = c(),
                      x_label     = 'Time (s)',
                      y_label     = 'Concentration (M)',

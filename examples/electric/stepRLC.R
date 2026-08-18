@@ -25,10 +25,12 @@ library(ggplot2) # plot()
 library(dplyr) # mutate()
 
 behaviours <- list(
-  'O' = c(R = 2.5, L = 1, C = 1), 
-  'C' = c(R = 2, L = 1, C = 1),
-  'U' = c(R = 1.18, L = 1.5, C = 1.5)
+  'O' = c(R = 4, L = 1, C = 1),# 2
+  'C' = c(R = 2, L = 1, C = 1),# 1 
+  'U' = c(R = 1, L = 1, C = 1) # 0.5
 )
+
+
 
 init_p_values <- list(
   'O' = c(
@@ -44,6 +46,9 @@ init_p_values <- list(
     a5 = 4.6948411, a6 = 0.6383476, a7 = 0.5079602, a8 = 108.4715251
   )
 )
+
+
+
 
 
 requireNamespace('diffeqr',quietly = TRUE)
@@ -181,10 +186,9 @@ for (regime in names(behaviours)) {
     verbose = FALSE
   )
 
-  # Keep one tabular behavior object so plot_behavior can subset named columns.
-  # The input source is the same across regimes, so store it once.
+
   if (!"vc_in" %in% names(behavior)) {
-    behavior[["vc_in"]] <- result[, "v1p"]
+    behavior[["v_in"]] <- result[, "v1p"]
   }
   # all_result[[jn("i_",regime)]] <- result[, "rlcol_ip"] - result[, "rlcol_in"]
   behavior[[jn("vc_",regime)]] <- result[, "rlcol_vcp"] - result[, "rlcol_vcn"] 
@@ -197,42 +201,27 @@ for (regime in names(behaviours)) {
   # all_result[[jn("I(L)_",regime)]] <- simRLC$inductor_current
 
   # assign(paste0("result_", gsub(" ", "_", regime)), result)
+
+  metrics <- analyze_transient_metrics(
+    timing = timing,
+    v_in = behavior[["v_in"]],
+    vc_model = result[['rlcol_vcp']] - result[['rlcol_vcn']],
+    vc_sim = simRLC$capacitor_voltage,
+    t0 = 10,
+    t1 = 25,
+    resistance = R,
+    inductance = L,
+    capacitance = C
+  )
+
+    print(metrics)
 }
-
-
-# Compute the sum of squared errors over all time points:
-#SSE_vc <- sum( (crn_vc - true_vc)^2 )
-#SSE_il <- sum( (crn_il - true_il)^2 )
-#total_error <- SSE_vc + SSE_il
-#cat("totalerror= ", total_error, "(", SSE_vc, "+", SSE_il, ')\n')
 
 
 plot_behavior(
   behavior, 
   title = sprintf("RLC Response DSD Vin=10[V]\n"), # "RLC Step Response 
-  species = c('vc_in', 'vc_O', 'vc_C', 'vc_U'),
+  species = c('v_in', 'vc_O', 'vc_C', 'vc_U'),
   species_dotted= c('V(C)_O', 'V(C)_C', 'V(C)_U'),
 )
 
-# metrics <- analyze_transient_metrics(
-#   timing = timing,
-#   vc_model = result_crn[['rlcol_vc']],
-#   vc_sim = simRLC$capacitor_voltage,
-#   t0 = 10,
-#   t1 = 25
-# )
-
-# print(metrics)
-
-# Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, plot_species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))
-
-#resultado_4dom <- React_4domain_circuit(circuit)
-
-#Plot_behavior(
-#  resultado_4dom$behavior, circuit, gate_number, minimum, maximum,
-#  plot_species= c('v1p', 'rlcol_i', 'rlcol_vc'), # c('v1p','rlcol_i', 'rlcol_vc', 'rlcl_state1', 'rlcl_state2', 'rlcl_add3_2', 'rlcl_mul2', 'rlcl_mul3', 'rlcl_mul4',  'l_consume1', 'l_consume2', 'l_scaler1', 'l_scaler2', 'l_delay1', 'l_delay2'
-#  plot_species_dotted=c('V(C)','I(L)' ), #
-  # 
-#  chart_title = sprintf("Overdamped RLC Circuit Response DSD Vin=10[V] R=%s L=%s C=%s\n", R, L, C), # "RLC Step Response 
-#  timing
-#)

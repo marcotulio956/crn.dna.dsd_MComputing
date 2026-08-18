@@ -133,8 +133,8 @@ plot_behavior <- function(
     title = "test",
     species = NULL,
     species_dotted = NULL,
-    x_label = 'Time',
-    y_label = 'Concentration',
+    x_label = 'Time (s)',
+    y_label = 'Concentration (M)',
     legend_name = 'Species',
     geom_list = list('line'),
     save_file_name = '.localdata/Rplots_',
@@ -213,7 +213,7 @@ plot_behavior <- function(
     }
 
     if (!is.null(save_file_name)) {
-        ggplot2::ggsave(paste0(save_file_name, format(Sys.time(), "%Y-%m-%d_%H-%M-%S"), ".png"), bg = white, plot=g, dpi = 300, width = 6, height = 4.5, create.dir = TRUE)
+        ggplot2::ggsave(paste0(save_file_name, format(Sys.time(), "%Y-%m-%d_%H-%M-%S"), ".png"), plot=g, dpi = 300, width = 6, height = 4.5, create.dir = TRUE)
     }
 
     return(g)
