@@ -17,11 +17,11 @@ source('R/forced_concentrations.R')
 
 timing <- seq(0,45, by = 0.01)
 
-rate = 10
+rate = 1
 
-capacitance = 10
+capacitance = 1
 
-resistance <- 10    # New internal resistance parameter
+resistance <- 1    # New internal resistance parameter
 
 
 cap <- Make_Capacitor_Component(0, capacitance, resistance)

@@ -70,12 +70,12 @@ React_stochastic <-function(circuit, volume = 10, seed = NULL) {
 
 Plot_behavior <- function(result, circuit, species = c(), species_dotted = c(), title = "", normalize = TRUE, intercept=FALSE, ymin, ymax) {
   if(normalize==TRUE){
-    # behavior_scaled <- behavior
-    # behavior_scaled[, -1] <- lapply(behavior[, -1], function(x) {
-    #   if(max(x) == min(x)) return(x) # prevent division by zero for constant columns
-    #   (x - min(x)) / (max(x) - min(x))
-    # })
-    # result <- behavior_scaled
+    behavior_scaled <- behavior
+    behavior_scaled[, -1] <- lapply(behavior[, -1], function(x) {
+      if(max(x) == min(x)) return(x) # prevent division by zero for constant columns
+      (x - min(x)) / (max(x) - min(x))
+    })
+    result <- behavior_scaled
   }
   if(length(species) == 0) {
     species <- circuit$species
