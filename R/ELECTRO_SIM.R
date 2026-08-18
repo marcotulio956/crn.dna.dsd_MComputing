@@ -33,22 +33,22 @@ simulate_sRC_voltage_source <- function(timing, source_voltage, resistance, capa
 # 1) Series RL with Voltage Source (you already had this)
 simulate_sRL_voltage_source <- function(timing, source_voltage, resistance, inductance) {
   n <- length(timing)
-  inductor_current <- numeric(n)
-inductor_current[1] <- 0
+  current_output <- numeric(n)
+  current_output[1] <- 0
 
   # di/dt = (v_in - R*i) / L
   for (i in 1:(n - 1)) {
     dt <- timing[i + 1] - timing[i]
-    di_dt <- (source_voltage[i] - resistance * inductor_current[i]) / inductance
-    inductor_current[i + 1] <- inductor_current[i] + dt * di_dt
+    di_dt <- (source_voltage[i] - resistance * current_output[i]) / inductance
+    current_output[i + 1] <- current_output[i] + dt * di_dt
   }
 
-  resistor_voltage <- resistance * inductor_current
+  resistor_voltage <- resistance * current_output
   inductor_voltage <- source_voltage - resistor_voltage
 
   return(list(
     source_voltage   = source_voltage,
-    inductor_current = inductor_current,
+    current_output = current_output,
     resistor_voltage = resistor_voltage,
     inductor_voltage = inductor_voltage
   ))
@@ -59,7 +59,7 @@ simulate_C_voltage_source <- function(timing, source_voltage, capacitance,
   n <- length(timing)
 
   capacitor_voltage <- numeric(n)
-  capacitor_current <- numeric(n)
+  current_output <- numeric(n)
 
   capacitor_voltage[1] <- initial_voltage
 
@@ -77,18 +77,18 @@ simulate_C_voltage_source <- function(timing, source_voltage, capacitance,
     dV_dt <- (source_voltage[i + 1] - source_voltage[i]) / dt
 
     capacitor_voltage[i + 1] <- source_voltage[i + 1]
-    capacitor_current[i] <- capacitance * dV_dt
+    current_output[i] <- capacitance * dV_dt
   }
 
   # Current at the last point
   dt <- timing[n] - timing[n - 1]
   dV_dt <- (source_voltage[n] - source_voltage[n - 1]) / dt
-  capacitor_current[n] <- capacitance * dV_dt
+  current_output[n] <- capacitance * dV_dt
 
   return(list(
     source_voltage = source_voltage,
     capacitor_voltage = capacitor_voltage,
-    capacitor_current = capacitor_current
+    current_output = current_output
   ))
 }
 
@@ -97,10 +97,10 @@ simulate_L_voltage_source <- function(timing, source_voltage, inductance,
                                       initial_current = 0) {
   n <- length(timing)
 
-  inductor_current <- numeric(n)
+  current_output <- numeric(n)
   inductor_voltage <- numeric(n)
 
-  inductor_current[1] <- initial_current
+  current_output[1] <- initial_current
 
   # V_L = L * di/dt
   # di/dt = V_L / L
@@ -113,15 +113,15 @@ simulate_L_voltage_source <- function(timing, source_voltage, inductance,
 
     di_dt <- source_voltage[i] / inductance
 
-    inductor_current[i + 1] <-
-      inductor_current[i] + dt * di_dt
+    current_output[i + 1] <-
+      current_output[i] + dt * di_dt
   }
 
   inductor_voltage <- source_voltage
 
   return(list(
     source_voltage = source_voltage,
-    inductor_current = inductor_current,
+    current_output = current_output,
     inductor_voltage = inductor_voltage
   ))
 }
