@@ -48,7 +48,11 @@ get_M <- function(reactions, species) {
     return(data)
 }
 
-solve_crn_diffeqr <- function(t, ci, Mt, reactant_map, v_exp_reactants, ki) {
+solve_crn_diffeqr <- function(t, ci, Mt, reactant_map, v_exp_reactants, ki,
+                               species = NULL,
+                               forced_concentrations = NULL,
+                               events = NULL,
+                               forcing_tau = 0.01) {
     if(!all(vapply(ki, is.numeric, logical(1)))) {
         stop(
             "The 'diffeqr' engine currently supports numeric constant ki values only."
@@ -83,6 +87,71 @@ solve_crn_diffeqr <- function(t, ci, Mt, reactant_map, v_exp_reactants, ki) {
         lapply(v_exp_reactants, function(exps) as.numeric(exps))
     )
 
+    ## ------------------------------------------------------------
+    ## Forced concentrations
+    ## ------------------------------------------------------------
+    ## Same semantics as the deSolve branch of react2_patched_events():
+    ## a fast relaxation dy[idx] = (forcing(t) - u[idx]) / tau drives the
+    ## forced species towards forcing(t) instead of pinning it exactly,
+    ## so behavior matches the deSolve engine. The forcing functions
+    ## are ordinary R closures of `t`; diffeqr/JuliaCall already relies
+    ## on turning R functions into Julia-callable objects (that's how
+    ## it lets you define an ODE's RHS in pure R, e.g. `de$ODEProblem(f,
+    ## u0, tspan)` with `f` a plain R function), so that same mechanism
+    ## is reused here to call the forcing functions back from inside
+    ## the Julia solve loop.
+    ## ------------------------------------------------------------
+    forced_idx <- integer(0)
+    if (!is.null(forced_concentrations) && length(forced_concentrations) > 0) {
+        if (is.null(species)) {
+            stop("solve_crn_diffeqr(): 'species' must be supplied when forced_concentrations is used.")
+        }
+        if (!is.list(forced_concentrations)) stop("forced_concentrations must be a named list")
+
+        forced_names <- names(forced_concentrations)
+        raw_idx      <- match(forced_names, species)
+        unmatched    <- forced_names[is.na(raw_idx)]
+        if (length(unmatched) > 0) {
+            warning(sprintf(
+                "forced_concentrations references unknown species (ignored): %s",
+                paste(unmatched, collapse = ", ")
+            ))
+        }
+
+        keep         <- !is.na(raw_idx)
+        forced_names <- forced_names[keep]
+        forced_idx   <- raw_idx[keep]
+        forced_funcs <- forced_concentrations[keep]
+
+        for (i in seq_along(forced_funcs)) {
+            fn_i <- forced_funcs[[i]]
+            if (!is.function(fn_i)) {
+                stop(sprintf("forced_concentrations['%s'] must be a function", forced_names[i]))
+            }
+            ## Freshly bind fn_i in its own environment so each Julia
+            ## global closes over the right function (avoids classic
+            ## loop-variable-capture bugs).
+            wrapped <- local({
+                fn_local <- fn_i
+                function(t) fn_local(t)
+            })
+            JuliaCall::julia_assign(sprintf("crn_forcing_func_%d", i), wrapped)
+        }
+
+        if (length(forced_funcs) > 0) {
+            JuliaCall::julia_command(sprintf(
+                "crn_forcing_funcs = [%s]",
+                paste(sprintf("crn_forcing_func_%d", seq_along(forced_funcs)), collapse = ", ")
+            ))
+        } else {
+            JuliaCall::julia_command("crn_forcing_funcs = []")
+        }
+    } else {
+        JuliaCall::julia_command("crn_forcing_funcs = []")
+    }
+    JuliaCall::julia_assign("crn_forced_idx", as.integer(forced_idx))
+    JuliaCall::julia_assign("crn_forcing_tau", as.numeric(forcing_tau))
+
     JuliaCall::julia_command(
         paste0(
             "function crn_ode(u, p, t)\n",
@@ -100,7 +169,12 @@ solve_crn_diffeqr <- function(t, ci, Mt, reactant_map, v_exp_reactants, ki) {
             "            v[i] = term\n",
             "        end\n",
             "    end\n",
-            "    return vec(crn_M * v)\n",
+            "    dy = vec(crn_M * v)\n",
+            "    for i in eachindex(crn_forced_idx)\n",
+            "        idx = crn_forced_idx[i]\n",
+            "        dy[idx] = (crn_forcing_funcs[i](t) - u[idx]) / crn_forcing_tau\n",
+            "    end\n",
+            "    return dy\n",
             "end"
         )
     )
@@ -109,13 +183,78 @@ solve_crn_diffeqr <- function(t, ci, Mt, reactant_map, v_exp_reactants, ki) {
         "ODEProblem(crn_ode, crn_u0, crn_tspan)"
     )
 
-    sol <- de$solve(
+    ## ------------------------------------------------------------
+    ## Events
+    ## ------------------------------------------------------------
+    ## Instantaneous additions/removals at fixed times, independent of
+    ## any reaction -- same contract as the deSolve branch (data.frame
+    ## with time / species / amount; amount is added to the state).
+    ## Implemented as a Julia PresetTimeCallback: the solver is forced
+    ## to stop exactly at each event time, and the callback adds
+    ## `amount` onto the target species' state at that instant.
+    ## save_positions=(false,false) keeps the output grid exactly equal
+    ## to `saveat` (no extra rows inserted around the jump), matching
+    ## what the no-events code path already returns.
+    ## ------------------------------------------------------------
+    callback_arg <- NULL
+    if (!is.null(events) && nrow(events) > 0) {
+        if (is.null(species)) {
+            stop("solve_crn_diffeqr(): 'species' must be supplied when events is used.")
+        }
+        stopifnot(all(c("time","species","amount") %in% names(events)))
+
+        event_idx <- match(events$species, species)
+        unmatched <- unique(events$species[is.na(event_idx)])
+        if (length(unmatched) > 0) {
+            warning(sprintf(
+                "events references unknown species (ignored): %s",
+                paste(unmatched, collapse = ", ")
+            ))
+        }
+        keep <- !is.na(event_idx)
+
+        if (any(keep)) {
+            JuliaCall::julia_assign("crn_event_times", as.numeric(events$time[keep]))
+            JuliaCall::julia_assign("crn_event_idx", as.integer(event_idx[keep]))
+            JuliaCall::julia_assign("crn_event_amount", as.numeric(events$amount[keep]))
+
+            ## DiffEqCallbacks is a dependency of DifferentialEquations.jl
+            ## and PresetTimeCallback is normally already visible after
+            ## `using DifferentialEquations`; this call is a harmless
+            ## no-op safety net for setups where it isn't re-exported.
+            tryCatch(JuliaCall::julia_library("DiffEqCallbacks"),
+                     error = function(e) invisible(NULL))
+
+            JuliaCall::julia_command(paste0(
+                "function crn_event_affect!(integrator)\n",
+                "    t_now = integrator.t\n",
+                "    for i in eachindex(crn_event_times)\n",
+                "        if crn_event_times[i] == t_now\n",
+                "            integrator.u[crn_event_idx[i]] += crn_event_amount[i]\n",
+                "        end\n",
+                "    end\n",
+                "end"
+            ))
+            JuliaCall::julia_command("crn_event_tstops = sort(unique(crn_event_times))")
+            JuliaCall::julia_command(
+                "crn_cb = PresetTimeCallback(crn_event_tstops, crn_event_affect!; save_positions=(false,false))"
+            )
+            callback_arg <- JuliaCall::julia_eval("crn_cb")
+        }
+    }
+
+    solve_args <- list(
         prob,
         de$Tsit5(),
         saveat = as.numeric(t),
         abstol = 1e-8,
         reltol = 1e-8
     )
+    if (!is.null(callback_arg)) {
+        solve_args$callback <- callback_arg
+    }
+
+    sol <- do.call(de$solve, solve_args)
 
     list(
         time = as.numeric(unlist(as.list(sol$t))),
@@ -448,9 +587,7 @@ react2 <- function(
     t,
     verbose = FALSE,
     engine = 'desolve',
-    forced_concentrations = NULL,
-    ...
-) {
+    forced_concentrations = NULL) {
     # ------------------------------------------------------------
     # Validate engine
     # ------------------------------------------------------------
@@ -736,8 +873,7 @@ react2 <- function(
 react2_patched <- function(
     species, ci, reactions, ki, t,
     verbose = FALSE, engine = 'desolve',
-    forced_concentrations = NULL, ...
-) {
+    forced_concentrations = NULL) {
     if(!engine %in% c('desolve', 'diffeqr')) {
         stop(sprintf("Invalid engine: '%s'. Must be either 'desolve' or 'diffeqr'.", engine))
     }
@@ -921,16 +1057,15 @@ react2_patched <- function(
 ##           needing to know its format and remember to name `ci`.
 ## ============================================================
 
-react2_patched_events <- function(
+react2_patched_events_diffeqr <- function(
     species, ci, reactions, ki, t,
     verbose = FALSE, engine = 'desolve',
     forced_concentrations = NULL,
-    events = NULL,   ## >>> PATCH C: new parameter
-                      ## data.frame(time=, species=, amount=) --
+    events = NULL,   ## data.frame(time=, species=, amount=) --
                       ## instantaneous additions (or, with a negative
                       ## amount, removals) at specific times,
-                      ## independent of any reaction. Same shape as
-                      ## react_stochastic_frates_patched()'s `events`.
+                      ## independent of any reaction. Supported by
+                      ## both the 'desolve' and 'diffeqr' engines.
     ...
 ) {
     if(!engine %in% c('desolve', 'diffeqr')) {
@@ -938,29 +1073,33 @@ react2_patched_events <- function(
     }
     reactions <- check_crn(species, ci, reactions, ki, t)
 
-    ## >>> PATCH C: ci must be named for deSolve to route events to the
-    ## right state variable; do it here so the caller doesn't have to
-    ## remember to (this is exactly the friction that made the old
-    ## deSolve-passthrough route to events easy to misuse silently --
-    ## an unnamed `ci` doesn't error, it just makes deSolve report
-    ## "unknown state variable in event").
+    ## ci must be named for deSolve to route events to the right state
+    ## variable; do it here so the caller doesn't have to remember to
+    ## (this is exactly the friction that made the old deSolve-passthrough
+    ## route to events easy to misuse silently -- an unnamed `ci`
+    ## doesn't error, it just makes deSolve report "unknown state
+    ## variable in event").
     if (is.null(names(ci))) ci <- setNames(as.numeric(ci), species)
 
+    ## >>> events
+    ## For engine == 'desolve' we build deSolve's native event table.
+    ## For engine == 'diffeqr' the raw `events` data.frame is instead
+    ## forwarded, unmodified, to solve_crn_diffeqr() below, which turns
+    ## it into a Julia PresetTimeCallback.
     events_arg <- NULL
     if (!is.null(events)) {
         stopifnot(all(c("time","species","amount") %in% names(events)))
-        if (!(engine == 'desolve')) {
-            stop("events currently requires engine = 'desolve' (diffeqr event support is not implemented).")
+        if (engine == 'desolve') {
+            ev_table <- data.frame(
+                var    = events$species,
+                time   = events$time,
+                value  = events$amount,
+                method = "add"
+            )
+            events_arg <- list(data = ev_table)
         }
-        ev_table <- data.frame(
-            var    = events$species,
-            time   = events$time,
-            value  = events$amount,
-            method = "add"
-        )
-        events_arg <- list(data = ev_table)
     }
-    ## <<< END PATCH C
+    ## <<< end events
 
     sto_info  <- get_M(reactions, species)
     sto_react <- t(sto_info$react)
@@ -1004,8 +1143,8 @@ react2_patched_events <- function(
         }
     }
 
-    ## >>> PATCH A: validate every ki once, up front, instead of
-    ## wrapping every call in fx() with tryCatch.
+    ## Validate every ki once, up front, instead of wrapping every call
+    ## in fx() with tryCatch.
     y0_named <- setNames(as.numeric(ci), species)
     for (i in seq_along(kinetic_functions)) {
         val <- tryCatch(
@@ -1021,7 +1160,6 @@ react2_patched_events <- function(
             ))
         }
     }
-    ## <<< END PATCH A
 
     if(!is.null(forced_concentrations)) {
         if(!is.list(forced_concentrations)) stop("forced_concentrations must be a named list")
@@ -1035,21 +1173,18 @@ react2_patched_events <- function(
     fx <- function(t, y, parms) {
         y_named <- setNames(as.numeric(y), species)
 
-        ## >>> PATCH B: non-negative view used ONLY for propensity
-        ## evaluation; the true state `y` handed back to deSolve is
-        ## untouched, so this does not mask genuine integration
-        ## problems, it only stops transient negative-overshoot noise
-        ## from corrupting the computed rates.
+        ## non-negative view used ONLY for propensity evaluation; the
+        ## true state `y` handed back to deSolve is untouched, so this
+        ## does not mask genuine integration problems, it only stops
+        ## transient negative-overshoot noise from corrupting the
+        ## computed rates.
         y_eval <- pmax(y_named, 0)
-        ## <<< END PATCH B
 
         v <- numeric(length(reactions))
         for(i in seq_along(reactions)) {
             react_map <- reactant_map[[i]]
 
-            ## >>> PATCH A: no tryCatch here anymore
             k_val <- kinetic_functions[[i]](t, y_named, species)
-            ## <<< END PATCH A
 
             if(length(react_map) == 1 && is.na(react_map)) {
                 mass_action_term <- 1
@@ -1089,12 +1224,12 @@ react2_patched_events <- function(
             print(deSolve::diagnostics.deSolve(result))
         }
     } else if(engine == 'diffeqr') {
-        if(!is.null(forced_concentrations)) {
-            stop("The Julia call 'diffeqr' engine currently does not support forced_concentrations. Use 'desolve' for forced systems.")
-        }
         solved <- solve_crn_diffeqr(
             t = t, ci = ci, Mt = Mt, reactant_map = reactant_map,
-            v_exp_reactants = v_exp_reactants, ki = ki
+            v_exp_reactants = v_exp_reactants, ki = ki,
+            species = species,
+            forced_concentrations = forced_concentrations,
+            events = events
         )
         result <- cbind(time = solved$time, solved$values)
     }
