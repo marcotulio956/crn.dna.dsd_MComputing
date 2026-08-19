@@ -25,9 +25,9 @@ library(ggplot2) # plot()
 library(dplyr) # mutate()
 
 behaviours <- list(
-  'O' = c(R = 4, L = 1, C = 1),# 2
-  'C' = c(R = 2, L = 1, C = 1),# 1 
-  'U' = c(R = 1, L = 1, C = 1) # 0.5
+  'O' = c(R = 2.2, L = 1, C = 1),# 2
+  'C' = c(R = 1.2, L = 1, C = 1),# 1 
+  'U' = c(R = 0.25, L = 1, C = 1) # 0.5
 )
 
 
@@ -160,7 +160,7 @@ Make_RLC <- function(timing, regime) {
 }
 
 t0 = 0
-t1 = 40
+t1 = 80
 points = (t1 - t0) * 400 # * 80 # Using 50 time points
 timing  <- seq(t0, t1, length.out = points) # Using 50 time points
 

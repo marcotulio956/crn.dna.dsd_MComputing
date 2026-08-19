@@ -1057,7 +1057,7 @@ react2_patched <- function(
 ##           needing to know its format and remember to name `ci`.
 ## ============================================================
 
-react2_patched_events_diffeqr <- function(
+react2_patched_events <- function(
     species, ci, reactions, ki, t,
     verbose = FALSE, engine = 'desolve',
     forced_concentrations = NULL,

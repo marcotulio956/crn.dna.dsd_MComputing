@@ -48,6 +48,19 @@ React_4domain <- function(circuit, forced_concentrations = NULL, engine = 'desol
 # )
 # fuzzy_input_func <- approxfun(x = fuzzy_pulse_data$time, y = fuzzy_pulse_data$value, rule = 2)
 
+Translate_4domain <- function(circuit, forced_concentrations = NULL, engine = 'desolve') {
+  return(translate_4domain_crn(
+    species   = circuit$species,
+    ci        = circuit$ci,
+    reactions = circuit$reactions,
+    ki        = circuit$ki,
+    qmax      = 1e6, # maximum strand displacement rate constant
+    cmax      = 1e7, # 1e-4  # starting concentration of auxiliary complexes Gi and Ti
+    alpha     = 1,   # DSD timescale versus CRN
+    beta      = 1,   # DSD concentration scale versus CRN
+    t         = circuit$t
+  ))
+}
 
 
 React_stochastic <-function(circuit, volume = 10, seed = NULL) {
@@ -68,7 +81,7 @@ React_stochastic <-function(circuit, volume = 10, seed = NULL) {
 }
 
 
-Plot_behavior <- function( title = "", result, circuit, species = c(), species_dotted = c(), normalize = TRUE, intercept=FALSE, ymin, ymax) {
+Plot_behavior <- function( title = "", result, circuit=NULL, species = c(), species_dotted = c(), normalize = TRUE, intercept=FALSE, ymin, ymax) {
   if(normalize==TRUE){
     behavior_scaled <- behavior
     behavior_scaled[, -1] <- lapply(behavior[, -1], function(x) {

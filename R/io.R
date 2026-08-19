@@ -228,7 +228,7 @@ plot_behavior <- function(
     }
 
     if (!is.null(save_file_name)) {
-        ggplot2::ggsave(paste0(save_file_name, format(Sys.time(), "%Y-%m-%d_%H-%M-%S"), ".png"), plot=g, dpi = 300, width = 6, height = 4.5, create.dir = TRUE)
+        ggplot2::ggsave(paste0(save_file_name, format(Sys.time(), "%Y-%m-%d_%H-%M-%S"), ".png"), plot=g, dpi = 300, width = 10, height = 5, create.dir = TRUE)
     }
 
     return(g)
