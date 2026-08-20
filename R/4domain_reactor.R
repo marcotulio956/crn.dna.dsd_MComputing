@@ -455,7 +455,7 @@ react_4domain <- function(
     )
 
     # Run the reaction
-    b <- react2_patched_events(
+    b <- react4(
         species   = translated$species,
         ci        = translated$ci,
         reactions = translated$reactions,

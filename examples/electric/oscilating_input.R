@@ -14,64 +14,156 @@ source('R/ELECTRO_LIB.R')
 source('R/ELECTRO_SIM.R')
 source('R/GATE_LIB.R')
 source('R/io.R')
-source('R/neuron_hjelmfelt.R')
+source('R/forced_concentrations.R')
 source('R/parser.R')
 source('R/util_functions.R')
 source('R/metric_functions.R')
 
 jn <- function(...) { paste(..., sep = '') }
 
+source("examples/pipeline/PIPELINE_LIB.R")
+
+
+Make_SquareWave_Clock <- function(name, amplitude = 10, period = 20, start_high = FALSE) {
+  
+  # Fast reaction rate for sharp vertical edges
+  k_edge <- 100 
+  
+  out_sp <- jn(name, "_out")
+  i_sp   <- jn(name, "_I")
+  
+  # Set initial conditions based on whether we start High or Low
+  # If High: Out = amplitude, I = 0
+  # If Low:  Out = 0, I = amplitude
+  initial_cond <- if (start_high) c(amplitude, 0) else c(0, amplitude)
+  
+  # 1. Define the LOW-driving stage
+  Stage_DriveLow <- list(
+    species   = c(out_sp, i_sp),
+    reactions = c(jn(out_sp, ' -> ', i_sp)),
+    ci        = initial_cond, 
+    ki        = c(k_edge)
+  )
+  
+  # 2. Define the HIGH-driving stage
+  Stage_DriveHigh <- list(
+    species   = c(out_sp, i_sp),
+    reactions = c(jn(i_sp, ' -> ', out_sp)),
+    ci        = initial_cond, 
+    ki        = c(k_edge)
+  )
+  
+  # 3. Map the two logical states to the 4 underlying clock phases
+  # This guarantees a perfect 50% duty cycle while satisfying the N >= 3 rule.
+  if (start_high) {
+    stages <- list(Stage_DriveHigh, Stage_DriveHigh, Stage_DriveLow, Stage_DriveLow)
+  } else {
+    stages <- list(Stage_DriveLow, Stage_DriveLow, Stage_DriveHigh, Stage_DriveHigh)
+  }
+  
+  # Tune oscillator speed
+  estimated_rate <- 5 / period 
+  
+  # 4. Build the pipeline
+  circuit <- Make_Pipeline(
+    stages                   = stages,
+    phase_names              = c(jn(name,"_P1"), jn(name,"_P2"), jn(name,"_P3"), jn(name,"_P4")),
+    oscillator_rate          = estimated_rate,
+    oscillator_total         = 150,
+    oscillator_dominant_frac = 0.9,
+    clock_name               = jn(name, "_Clk")
+  )
+  
+  circuit$name <- name
+  
+  return(circuit)
+}
+
+Make_SquareWave_Clock <- function(name, amplitude = 10, period = 20, start_high = FALSE) {
+  
+  # Fast reaction rate for sharp vertical edges
+  k_edge <- 100 
+  
+  out_sp <- jn(name, "_out")
+  i_sp   <- jn(name, "_I")
+  
+  # Set initial conditions based on whether we start High or Low
+  # If High: Out = amplitude, I = 0
+  # If Low:  Out = 0, I = amplitude
+  initial_cond <- if (start_high) c(amplitude, 0) else c(0, amplitude)
+  
+  # 1. Define the LOW-driving stage
+  Stage_DriveLow <- list(
+    species   = c(out_sp, i_sp),
+    reactions = c(jn(out_sp, ' -> ', i_sp)),
+    ci        = initial_cond, 
+    ki        = c(k_edge)
+  )
+  
+  # 2. Define the HIGH-driving stage
+  Stage_DriveHigh <- list(
+    species   = c(out_sp, i_sp),
+    reactions = c(jn(i_sp, ' -> ', out_sp)),
+    ci        = initial_cond, 
+    ki        = c(k_edge)
+  )
+  
+  # 3. Map the two logical states to the 4 underlying clock phases
+  # This guarantees a perfect 50% duty cycle while satisfying the N >= 3 rule.
+  if (start_high) {
+    stages <- list(Stage_DriveHigh, Stage_DriveHigh, Stage_DriveLow, Stage_DriveLow)
+  } else {
+    stages <- list(Stage_DriveLow, Stage_DriveLow, Stage_DriveHigh, Stage_DriveHigh)
+  }
+  
+  # Tune oscillator speed
+  estimated_rate <- 5 / period 
+  
+  # 4. Build the pipeline
+  circuit <- Make_Pipeline(
+    stages                   = stages,
+    phase_names              = c(jn(name,"_P1"), jn(name,"_P2"), jn(name,"_P3"), jn(name,"_P4")),
+    oscillator_rate          = estimated_rate,
+    oscillator_total         = 150,
+    oscillator_dominant_frac = 0.9,
+    clock_name               = jn(name, "_Clk")
+  )
+  
+  circuit$name <- name
+  
+  return(circuit)
+}
+
 
 Make_Generic <- function(timing) {
   circuit <- make_circuit(timing)
   
-  g_dalchau <- Make_Oscillator_Dalchau('osc', 'y', 'z', 'c1il_v1p', 9, 8, 5, 10e-2)
+  g_dalchau_sin <- Make_Oscillator_Dalchau('osc', 'y', 'z', 'sin', 9, 8, 5, 10e-2)  
   
-  c1 <- Make_Capacitor_Component(1, L * 1e-2)
-  
-  c1$il$voltage_positive <- 'c1il_v1p'
-  
-  # - Electro
-  e1_gates <- Make_Circuit_Capacitor(c1$name, c1$il, c1$ol, c1$ic, 10000)
+  # FIXED: Match the period of 10 from 'ref_step' and set an appropriate amplitude. 
+  # Assuming 'square_input' generates a 0-to-1 signal, we use amplitude=1. 
+  # If square_input generates 0-to-10, change amplitude to 10.
+  g_step <- Make_SquareWave_Clock('step', amplitude = 10, period = 200)
   
   # add2circuit
-  circuit <- circuit_add_gate(circuit, g_dalchau)
-  circuit <- circuit_add_compile_gates(circuit, e1_gates)
+  circuit <- circuit_add_gate(circuit, g_dalchau_sin)
+  circuit <- circuit_add_gate(circuit, g_step)
   
-  return (circuit)
+  return(circuit)
 }
 
+
 t0 = 0
-t1 = 20
-points = (t1 - t0) * 50 # Using 50 time points
-time_grid  <- seq(t0, t1, length.out = points) # Using 50 time points
+t1 = 40
+points = (t1 - t0) * t1 
+timing  <- seq(t0, t1, length.out = points) 
+circuit <- Make_Generic(timing)
 
-df_opt <- React_circuit({
-  circuit <- DNArLogic::make_circuit(time_grid)
-  circuit <- circuit_add_gate(
-    circuit,
-    Make_Oscillator_Dalchau('osc', 'v3p', 'v2p', 'v1p', 9, 8, 5, 10e-2)
-  )
-  circuit
-})
+behavior <- React_circuit(circuit,engine="desolve")
 
-x1_sim_opt <- df_opt[['v1p']]
-x2_sim_opt <- df_opt[['v2p']]
-x3_sim_opt <- df_opt[['v3p']]
+behavior[['ref_sin']] <- simulate_sin(timing)
+behavior[['ref_step']] <- square_input(timing, period = 10, pulse_width = 10/2, delay = 0)
 
-v_target <- simulate_sin(time_grid)
-
-plot(time_grid, v_target, type = "l", col = "green", lwd=2, lty = 2,
-     xlab="Time (S)", ylab="Concentratin (M)",
-     main="Generating a Voltage Source for Sinusoidal inputs DSD Target=2.5sin(2π/5 t+5)+7.5[V]", xlim=c(0,15), ylim=c(5,10))
-lines(time_grid, x1_sim_opt, col = "blue", lwd=3, lty=1)
-lines(time_grid, x2_sim_opt, col = "red", lwd=1, lty=1)
-lines(time_grid, x3_sim_opt, col = "yellow", lwd=1, lty=1)
-
-legend("bottomright",
-       legend=c("V(S)","v1p","v2p", "v3p"),
-       col=c("green","blue", 'red', 'yellow'), lwd=2, lty=c(2,1, 1, 1)) # c("purple","red", 'green', 'blue'), lwd=2, lty=c(2,1, 1, 1))
-
-
-
-
+Plot_behavior_(behavior, circuit, title = "Stimuli in DSD", 
+               species = c('step_out', 'sin'), 
+               species_dotted = c('ref_sin', 'ref_step'))

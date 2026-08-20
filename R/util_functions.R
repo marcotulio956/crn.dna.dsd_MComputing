@@ -2,7 +2,7 @@ library(ggplot2) # plot()
 library(dplyr) # mutate()
 
 React_circuit <- function(circuit, forced_concentrations = NULL, engine = 'desolve') {
-  return(react2_patched_events(
+  return(react4(
     species   = circuit$species,
     ci        = circuit$ci,
     reactions = circuit$reactions,

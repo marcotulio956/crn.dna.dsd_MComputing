@@ -61,7 +61,7 @@ tvec <- seq(0, 50, by = 0.02)
 out_sto <- react_stochastic_frates_events(circuit$species, circuit$ci, circuit$reactions, circuit$ki,
                                 tvec, volume = 10, events = events, seed = 7)
 
-out_det <-react2_patched_events(circuit$species, circuit$ci, circuit$reactions, circuit$ki,
+out_det <-react4(circuit$species, circuit$ci, circuit$reactions, circuit$ki,
                                                  tvec, events = events)
 # write.csv(out, "pipeline_demo_trajectory.csv", row.names = FALSE)
 Plot_behavior(out_sto, species = c("IN", "R1", "R2", "OUT", "SNAP"," READ_PH", "SNAP_done", "OUT_hold"))

@@ -90,7 +90,7 @@ solve_crn_diffeqr <- function(t, ci, Mt, reactant_map, v_exp_reactants, ki,
     ## ------------------------------------------------------------
     ## Forced concentrations
     ## ------------------------------------------------------------
-    ## Same semantics as the deSolve branch of react2_patched_events():
+    ## Same semantics as the deSolve branch of react4():
     ## a fast relaxation dy[idx] = (forcing(t) - u[idx]) / tau drives the
     ## forced species towards forcing(t) instead of pinning it exactly,
     ## so behavior matches the deSolve engine. The forcing functions
@@ -870,7 +870,7 @@ react2 <- function(
     return(df_result)
 }
 
-react2_patched <- function(
+react3 <- function(
     species, ci, reactions, ki, t,
     verbose = FALSE, engine = 'desolve',
     forced_concentrations = NULL) {
@@ -1020,7 +1020,7 @@ react2_patched <- function(
 }
 
 ## ============================================================
-## react2_patched.R
+## react3.R
 ##
 ## Two surgical changes from the original, marked "## >>> PATCH":
 ##
@@ -1057,7 +1057,7 @@ react2_patched <- function(
 ##           needing to know its format and remember to name `ci`.
 ## ============================================================
 
-react2_patched_events <- function(
+react4 <- function(
     species, ci, reactions, ki, t,
     verbose = FALSE, engine = 'desolve',
     forced_concentrations = NULL,

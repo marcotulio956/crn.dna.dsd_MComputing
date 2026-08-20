@@ -196,7 +196,7 @@ events <- data.frame(time = snap_time, species = "SNAP", amount = 1)
 ## that is actually a legitimate CRN.
 ## ================================================================
 
-result_crn <- react2_patched_events(
+result_crn <- react4(
   species   = circuit$species,
   ci        = circuit$ci,
   reactions = circuit$reactions,

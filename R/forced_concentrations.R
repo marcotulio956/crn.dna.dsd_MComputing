@@ -26,15 +26,22 @@ pulse_input <- function(t, time = 5, width = 5, amplitude = 10) {
   return(pmax(0, concentration))
 }
 
-square_input <- function(t, period = 10, pulse_width = period, amplitude = 10) {
-  # Determine the position within the current repeating period
-  time_in_period <- t %% period
+square_input <- function(t, period = 10, pulse_width = period, amplitude = 10, delay = 0) {
+  # Square wave with specified period, pulse width, amplitude, and delay
+  # Works for vector t
   
-  # Apply the step logic within the period
-  concentration <- ifelse(time_in_period < pulse_width, amplitude, 0)
+  # Adjust time by delay
+  t_adjusted <- t - delay
   
-  return(pmax(0, concentration))
+  # Before delay, output is zero
+  concentration <- ifelse(t < delay, 0,
+                          ifelse((t_adjusted %% period) / period < (pulse_width / period),
+                                 amplitude, 0))
+  
+  return(concentration)
 }
+
+
 
 # mu_target_func <- function(t) {
 #     pulse_input(t, time = 20, width = 40, amplitude = 50)
@@ -59,3 +66,20 @@ square_input <- function(t, period = 10, pulse_width = period, amplitude = 10) {
 #     y = fuzzy_pulse_data$value, 
 #     rule = 2
 # )
+
+
+simulate_sin <- function(t,
+                         A   = 2.5,      # amplitude
+                         DC  = 7.5,      # offset (DC level)
+                         PER = 5.045,      # period
+                         PHI = 3.1415/2 - (0.15)      # phase shift (in same time units as t)
+) {
+  # t: numeric vector of time points
+  # Returns a numeric vector of the same length with the sinusoidal value
+  
+  # Angular frequency ω = 2π / period
+  omega <- 2 * pi / PER
+  
+  # Compute y(t) = DC + A * sin(ω * (t - PHI))
+  DC + A * sin(omega * (t - PHI))
+}

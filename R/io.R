@@ -188,7 +188,7 @@ plot_behavior <- function(
             g <- g + ggplot2::geom_point(
                 data = dfm_solid,
                 ggplot2::aes(x = .data[[time_col]], y = value, color = variable),
-                size = 2.3
+                size = 1.3
             )
         }
     }
@@ -233,8 +233,7 @@ plot_behavior <- function(
         
         ggplot2::ggsave(file_path, plot = g, dpi = 300, width = 10, height = 5)
     }
-
-    return(g)
+    # return(g)
 }
 
 # species = c(circuito$gates[[numero]]$species$input1,

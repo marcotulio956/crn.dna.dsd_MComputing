@@ -118,7 +118,7 @@ events <- data.frame(time = snap_time, species = "SNAP", amount = 100)
 ## ================================================================
 
 
-# det <- react2_patched(
+# det <- react3(
 #   species = species,
 #   ci = ci,
 #   reactions = reactions,
