@@ -81,11 +81,11 @@ React_stochastic <-function(circuit, volume = 10, seed = NULL) {
 }
 
 
-Plot_behavior <- function(
+Plot_behavior_ <- function(
     result, circuit = NULL, gate_numbers = NULL, 
     min = NULL, max = NULL, 
     species = NULL, species_dotted = NULL, 
-    chart_title = "Behavior Plot", intercept = FALSE,
+    title = "Behavior", intercept = FALSE,
     normalize = FALSE
 ) {
   
@@ -103,7 +103,7 @@ Plot_behavior <- function(
     })
     
     result <- result_scaled
-    y_label_text <- 'Normalized Concentration (0 to 1)'
+    y_label_text <- 'Normalized Concentration (M)'
   } else {
     y_label_text <- 'Concentration (M)'
   }
@@ -129,7 +129,7 @@ Plot_behavior <- function(
   g <- plot_behavior(result, 
                      species = species_to_plot,
                      species_dotted = dotted_species_to_plot,
-                     chart_title = chart_title, 
+                     title = title, 
                      x_label     = 'Time (s)',
                      y_label     = y_label_text,
                      legend_name = 'Species',

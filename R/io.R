@@ -130,7 +130,7 @@ fte_theme <- function() {
 
 plot_behavior <- function(
     behavior,
-    title = "test",
+    title = "Plot",
     species = NULL,
     species_dotted = NULL,
     x_label = 'Time (s)',

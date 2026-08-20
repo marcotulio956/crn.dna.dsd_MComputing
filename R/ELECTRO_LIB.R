@@ -36,6 +36,75 @@ make_compiled_circuit_from_gates <- function(timing, gates) {
   )
 }
 
+Make_SquareWave_Oscillator <- function(name = "SquareWave_Oscillator", 
+                                       amplitude = 10, period = 20) {
+  
+  # A helper for string concatenation, assuming it behaves like the `jn` in your template
+  jn <- function(...) paste0(c(...), collapse = "")
+  
+  species <- list(
+    S1  = jn(name,"S1"),  # Clock phase 1 (drives Out HIGH)
+    S2  = jn(name,"S2"),  # Clock phase 2 (drives Out HIGH)
+    S3  = jn(name,"S3"),  # Clock phase 3 (drives Out LOW)
+    S4  = jn(name,"S4"),  # Clock phase 4 (drives Out LOW)
+    Out = jn(name,"out"), # The square wave target species
+    I   = jn(name,"I")    # The inverse of Out (maintains mass conservation)
+  )
+
+  # Initial concentrations. 
+  # We start with S3 dominant so the output is immediately forced to 0.
+  ci <- c(0, 0, amplitude, 0, 0, amplitude) 
+  
+  reactions <- c(
+    # --- 1. RING OSCILLATOR CLOCK ---
+    # Fast consumption to shift phases
+    jn(species$S1, ' + ', species$S2, ' -> ', species$S2, ' + ', species$S2),
+    jn(species$S2, ' + ', species$S3, ' -> ', species$S3, ' + ', species$S3),
+    jn(species$S3, ' + ', species$S4, ' -> ', species$S4, ' + ', species$S4),
+    jn(species$S4, ' + ', species$S1, ' -> ', species$S1, ' + ', species$S1),
+    
+    # Background leak/mutation to keep the period perfectly stable
+    jn(species$S1, ' -> ', species$S2),
+    jn(species$S2, ' -> ', species$S3),
+    jn(species$S3, ' -> ', species$S4),
+    jn(species$S4, ' -> ', species$S1),
+    
+    # --- 2. TOGGLE SWITCH (SQUARE WAVE GENERATOR) ---
+    # Phases 1 & 2 push Out to HIGH (Out = amplitude, I = 0)
+    jn(species$S1, ' + ', species$I, ' -> ', species$S1, ' + ', species$Out),
+    jn(species$S2, ' + ', species$I, ' -> ', species$S2, ' + ', species$Out),
+    
+    # Phases 3 & 4 push Out to LOW (Out = 0, I = amplitude)
+    jn(species$S3, ' + ', species$Out, ' -> ', species$S3, ' + ', species$I),
+    jn(species$S4, ' + ', species$Out, ' -> ', species$S4, ' + ', species$I)
+  )
+
+  # --- RATE CALCULATIONS ---
+  # To achieve a precise period of 20, each of the 4 clock phases must take 5 time units.
+  # Phase duration ~ ln(1/m + 1) when k_ring * amplitude = 1.
+  k_ring <- 1 / amplitude 
+  m_rate <- 1 / (exp(period / 4) - 1) 
+  
+  # Out switching rate is kept very high to create sharp, near-vertical square wave edges
+  k_out <- 10 
+  
+  ki <- c(
+    k_ring, k_ring, k_ring, k_ring, # Clock transition rates
+    m_rate, m_rate, m_rate, m_rate, # Clock leak rates (tunes period)
+    k_out, k_out, k_out, k_out      # Switch rates (tunes edge sharpness)
+  )
+
+  oscillator_gate <- list(
+    name      = name,
+    species   = species,
+    reactions = reactions,
+    ci        = ci,
+    ki        = ki
+  )
+
+  return(oscillator_gate)
+}
+
 #' @export
 #'
 #' @title Make_Add3In_CRN

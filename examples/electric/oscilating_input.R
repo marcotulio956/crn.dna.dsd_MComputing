@@ -21,15 +21,9 @@ source('R/metric_functions.R')
 
 jn <- function(...) { paste(..., sep = '') }
 
-library(ggplot2) # plot()
-library(dplyr) # mutate()
-
-R = 0.1
-L = 10
-
 
 Make_Generic <- function(timing) {
-  circuit <- DNArLogic::make_circuit(timing)
+  circuit <- make_circuit(timing)
   
   g_dalchau <- Make_Oscillator_Dalchau('osc', 'y', 'z', 'c1il_v1p', 9, 8, 5, 10e-2)
   
