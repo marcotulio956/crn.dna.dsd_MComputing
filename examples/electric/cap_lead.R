@@ -71,9 +71,9 @@ result_crn['I(R)'] <- 1 * (simRC$current_output)
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
-  #plot_species=c('l1il_i1p', 'l1ol_ip', 'l1ol_vp', 'l1ol_in', 'l1ol_vn', 'l1ol_vout'),
-  plot_species=c('c1il_v1p','c1ol_vout', 'c1ol_iout'), #  'y', 'z'),
-  plot_species_dotted=c('V(C)', 'I(R)'),
+  #species=c('l1il_i1p', 'l1ol_ip', 'l1ol_vp', 'l1ol_in', 'l1ol_vn', 'l1ol_vout'),
+  species=c('c1il_v1p','c1ol_vout', 'c1ol_iout'), #  'y', 'z'),
+  species_dotted=c('V(C)', 'I(R)'),
   chart_title = 'Oscilator Capacitor Current Lead DSD Vin=\'c1il_v1p\' R=10[ohm] C=0.1[F]',
   timing
 )
@@ -84,7 +84,7 @@ Plot_behavior(
 
 #Plot_behavior(
 #  resultado_4dom$behavior, circuit, gate_number, minimum, maximum,
-#  plot_species=c('c1ol_vp', 'c1ol_ip', 'c1ol_in', 'c1ol_iout'),
+#  species=c('c1ol_vp', 'c1ol_ip', 'c1ol_in', 'c1ol_iout'),
 #  chart_title = 'Oscilator Capacitor Current Lead DSD',
 #  timing
 #)

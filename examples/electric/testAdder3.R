@@ -106,16 +106,16 @@ gate_number = 1
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
-  plot_species=c(nameOutput1, nameOutput2, nameOutput2Wang),
-  plot_species_dotted=c(),
+  species=c(nameOutput1, nameOutput2, nameOutput2Wang),
+  species_dotted=c(),
   chart_title =  sprintf("Add3 Gate and Cascading Wang Add2 Gates CRN\n"), # 'Capacitor Step Response CRN Vcc=10[V] R=500[ohm] C=50e-4[F]',
   timing
 )
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
-  plot_species=c(nameOutput1, nameIntput1Song, nameIntput2Song, nameInput3Song, nameOutput3, nameOutput3Song),
-  plot_species_dotted=c(),
+  species=c(nameOutput1, nameIntput1Song, nameIntput2Song, nameInput3Song, nameOutput3, nameOutput3Song),
+  species_dotted=c(),
   chart_title =  sprintf("Add3 Gate and Cascading Song Add2 Gates CRN\n"), # 'Capacitor Step Response CRN Vcc=10[V] R=500[ohm] C=50e-4[F]',
   timing
 )
@@ -125,8 +125,8 @@ resultado_4dom <- React_4domain_circuit(circuit)
 
 Plot_behavior(
   resultado_4dom$behavior, circuit, gate_number, minimum, maximum,
-  plot_species=c(nameInput1, nameInput2, nameInput3, nameOutput1, nameOutput2, nameOutput2Wang, nameIntput1Song, nameIntput2Song, nameInput3Song, nameOutput3, nameOutput3Song),
-  plot_species_dotted=c(),
+  species=c(nameInput1, nameInput2, nameInput3, nameOutput1, nameOutput2, nameOutput2Wang, nameIntput1Song, nameIntput2Song, nameInput3Song, nameOutput3, nameOutput3Song),
+  species_dotted=c(),
   chart_title = sprintf("Add3 Gates and Cascading Wang Add2 Gates DSD\n"),
   timing
 )

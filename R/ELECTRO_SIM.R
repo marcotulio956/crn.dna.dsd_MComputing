@@ -377,19 +377,3 @@ simulate_Vcc <- function(t,
   # Gera vetor aplicando a função a cada tempo (vectorize)
   vapply(t, pulse_at, numeric(1))
 }
-
-simulate_sin <- function(t,
-                         A   = 2.5,      # amplitude
-                         DC  = 7.5,      # offset (DC level)
-                         PER = 5.045,     # period
-                         PHI = 3.1415/2 - (0.15)      # phase shift (in same time units as t)
-) {
-  # t: numeric vector of time points
-  # Returns a numeric vector of the same length with the sinusoidal value
-  
-  # Angular frequency ω = 2π / period
-  omega <- 2 * pi / PER
-  
-  # Compute y(t) = DC + A * sin(ω * (t - PHI))
-  DC + A * sin(omega * (t - PHI))
-}

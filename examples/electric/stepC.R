@@ -146,15 +146,15 @@ result_crn['I(R,C)'] <- 1e3 * simRC$current_output
 
 
 Plot_behavior(
-  result_crn, circuit,# gate_number, minimum, maximum,
-  # species=c('x', 'c1l_dvp', 'c1l_dvn', 'c1ol_ip', 'c1ol_in',  'c1ol_vp', 'c1ol_vn'),
-  # plot_species=c('x', 'c1ol_ip', 'c1ol_vp'),
-  #plot_species=c('x', 'y', 'z'),
-  species=c('c1il_v1p', 'c1ol_i', 'c1ol_v', 'V(C)', 'V(R)'),
-  # plot_species=c('c1il_v1p', 'c1ol_i', 'c1ol_v'),
-  # plot_species_dotted=c('V(C)', 'I(R,C)'),
-  # chart_title =  sprintf("Capacitor Response DSD Vin=10[V] R=5[hΩ] C=4[mF]\n"), # 'Capacitor Step Response CRN Vcc=10[V] R=500[ohm] C=50e-4[F]',
-  
+  result_crn, circuit, gate_number, minimum, maximum,
+  #species=c('x', 'c1l_dvp', 'c1l_dvn', 'c1ol_ip', 'c1ol_in',  'c1ol_vp', 'c1ol_vn'),
+  #species=c('x', 'c1ol_ip', 'c1ol_vp'),
+  #species=c('x', 'y', 'z'),
+  #species=c('c1il_v1p', 'c1ol_i', 'c1ol_v', 'V(C)', 'V(R)', 'I(C,R)'),
+  species=c('c1il_v1p', 'c1ol_i', 'c1ol_v'),
+  species_dotted=c('V(C)', 'I(R,C)'),
+  chart_title =  sprintf("Capacitor Response DSD Vin=10[V] R=5[hΩ] C=4[mF]\n"), # 'Capacitor Step Response CRN Vcc=10[V] R=500[ohm] C=50e-4[F]',
+  timing
 )
 
 cap_model <- estimate_tau_capacitor_voltage(timing, result_crn[['c1il_v1p']], result_crn[['c1ol_v']])
@@ -187,8 +187,8 @@ print(cap_sim)
 
 #   Plot_behavior(
 #     resultado_4dom$behavior, circuit, gate_number, minimum, maximum,
-#     plot_species=c('c1il_v1p', 'c1ol_i', 'c1ol_v'),
-#     plot_species_dotted=c('V(C)', 'I(R,C)'),
+#     species=c('c1il_v1p', 'c1ol_i', 'c1ol_v'),
+#     species_dotted=c('V(C)', 'I(R,C)'),
 #     chart_title = 'Capacitor Response DSD Vin=10[V] R=500[ohm] C=50e-4[F]',
 #     timing
 #   )

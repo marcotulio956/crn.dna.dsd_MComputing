@@ -193,14 +193,73 @@ for (regime in names(behaviours)) {
   # all_result[[jn("i_",regime)]] <- result[, "rlcol_ip"] - result[, "rlcol_in"]
   behavior[[jn("vc_",regime)]] <- result[, "rlcol_vcp"] - result[, "rlcol_vcn"] 
 
-  simRLC <- simulate_sRLC_voltage_source(
-    timing, result[['v1p']], R, L, C
-  )
+simRLC <- simulate_sRLC_voltage_source(
+  timing, result_crn[['v1p']], R, L, C
+)
 
-  behavior[[jn("V(C)_",regime)]] <- simRLC$capacitor_voltage
-  # all_result[[jn("I(L)_",regime)]] <- simRLC$inductor_current
+#simVcc <- simulate_Vcc(timing)
+#result_crn['Vcc'] <- simVcc
 
-  # assign(paste0("result_", gsub(" ", "_", regime)), result)
+vc_scale <- 1
+# result_crn['rlcol_vc'] <- vc_scale * ( result_crn['rlcl_state1_p'] - result_crn['rlcl_state1_n'])
+result_crn['rlcol_vc'] <- vc_scale * ( result_crn['rlcol_vcp'] - result_crn['rlcol_vcn'])
+ 
+
+i_scale <- 1
+# result_crn['rlcol_i'] <- i_scale * (result_crn['rlcl_state2_p'] - result_crn['rlcl_state2_n'])
+result_crn['rlcol_i'] <- i_scale * (result_crn['rlcol_ip'] - result_crn['rlcol_in'])
+
+
+### Plot intenal gates
+#state1_scale <- 0.01
+#state2_scale <- 0.01
+# result_crn['rlcl_mul1'] <- result_crn['rlcl_mul1_p'] - result_crn['rlcl_mul1_n']
+# result_crn['rlcl_add3_1'] <- result_crn['rlcl_add3_1_p_carry'] - result_crn['rlcl_add3_1_n_carry']
+# result_crn['rlcl_add3_2'] <- result_crn['rlcl_add3_2_p_carry'] - result_crn['rlcl_add3_2_n_carry']
+# result_crn['rlcl_mul2'] <- result_crn['rlcl_mul2_p'] - result_crn['rlcl_mul2_n']
+# result_crn['rlcl_mul3'] <- result_crn['rlcl_mul3_p'] - result_crn['rlcl_mul3_n']
+# result_crn['rlcl_mul4'] <- result_crn['rlcl_mul4_p'] - result_crn['rlcl_mul4_n']
+#result_crn['rlcl_state1'] <- state1_scale * ( result_crn['rlcl_state1_p'] - result_crn['rlcl_state1_n'])
+#result_crn['rlcl_state2'] <- state2_scale * ( result_crn['rlcl_state2_p'] - result_crn['rlcl_state2_n'])
+# result_crn['l_delay1'] <- 0.1 * (result_crn['rlcl_delay1_p'] - result_crn['rlcl_delay1_n'])
+# result_crn['l_delay2'] <- 0.1 * ( result_crn['rlcl_delay2_p'] - result_crn['rlcl_delay2_n'])
+# result_crn['l_consume1'] <- result_crn['rlcl_consume1_p'] - result_crn['rlcl_consume1_n']
+# result_crn['l_consume2'] <- result_crn['rlcl_consume2_p'] - result_crn['rlcl_consume2_n']
+# result_crn['l_scaler1'] <- result_crn['rlcl_scaler1_p'] - result_crn['rlcl_scaler1_n']
+# result_crn['l_scaler2'] <- result_crn['rlcl_scaler2_p'] - result_crn['rlcl_scaler2_n']
+
+# Result 1 : Series RLC circuit simulation with Voltage Source
+result_crn['V(C)'] <- 1 * simRLC$capacitor_voltage
+result_crn['I(L)'] <- 1 * simRLC$inductor_current
+#result_crn['sum_dx1'] <- 0.01 * simRLC$sum_dx1
+#result_crn['sum_dx2'] <- 0.01 * simRLC$sum_dx2
+#result_crn['V(S)'] <- 1 * simRLC$source_voltage
+#result_crn['V(R)'] <- 1 * simRLC$resistor_voltage
+#result_crn['V(L)'] <- 1 * simRLC$inductor_voltage
+
+#true_vc <- simRLC$capacitor_voltage
+#true_il <- simRLC$inductor_current
+#crn_vc <- result_crn['rlcol_vc']
+#crn_il <- result_crn['rlcol_i']
+
+# Compute the sum of squared errors over all time points:
+#SSE_vc <- sum( (crn_vc - true_vc)^2 )
+#SSE_il <- sum( (crn_il - true_il)^2 )
+#total_error <- SSE_vc + SSE_il
+#cat("totalerror= ", total_error, "(", SSE_vc, "+", SSE_il, ')\n')
+
+
+Plot_behavior_circuit(
+  result_crn, circuit, gate_number, minimum, maximum,
+  #plot_species=c('V(S)', 'V(C)', 'I(L)'), # show results 1: 'V(S)', 'V(C)', 'I(L)', 'V(R)', 'V(L)'
+  #plot_species=c('v1p', 'rlcol_vc', 'rlcol_i'), # show model 'v1p', 'rlcol_vc', 'rlcol_i'
+  #  plot_species=c('v1p', 'rlcol_vc', 'rlcol_i', 'rlcl_mul1_p', 'V(C)', 'I(L)'), # show comparision
+  plot_species= c('v1p', 'rlcol_i', 'rlcol_vc'), # c('v1p','rlcol_i', 'rlcol_vc', 'rlcl_state1', 'rlcl_state2', 'rlcl_add3_2', 'rlcl_mul2', 'rlcl_mul3', 'rlcl_mul4',  'l_consume1', 'l_consume2', 'l_scaler1', 'l_scaler2', 'l_delay1', 'l_delay2'
+  plot_species_dotted=c('V(C)','I(L)' ), #
+# 
+  chart_title = sprintf("%s RLC Response DSD Vin=10[V] R=%s[Ω] L=%s[H] C=%s[F]\n", regime, R, L, C), # "RLC Step Response 
+  timing
+)
 
   metrics <- analyze_transient_metrics(
     timing = timing,

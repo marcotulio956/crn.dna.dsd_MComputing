@@ -70,10 +70,10 @@ result_crn['l2ol_ip'] <- result_crn['l2ol_ip'] * 0.1
 Plot_behavior(
   chart_title="test",
   result_crn, circuit, gate_number, minimum, maximum,
-  plot_species=c('i1_i', 'l2ol_vp', 'l2ol_vn', 'l2ol_ip', 'l2ol_in', 'l2l_pflux'),
+  species=c('i1_i', 'l2ol_vp', 'l2ol_vn', 'l2ol_ip', 'l2ol_in', 'l2l_pflux'),
   timing
 )
-# Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, plot_species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))
+# Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))
 
 #resultado_4dom <- React_4domain_circuit(circuit)
 #

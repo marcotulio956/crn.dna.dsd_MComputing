@@ -154,12 +154,12 @@ result_crn['l1ol_v'] <- result_crn['c1ol_i']
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
-  #plot_species=c('x', 'c1l_dvp', 'c1l_dvn', 'c1ol_ip', 'c1ol_in',  'c1ol_vp', 'c1ol_vn'),
-  #plot_species=c('x', 'c1ol_ip', 'c1ol_vp'),
-  #plot_species=c('x', 'y', 'z'),
-  #plot_species=c('c1il_v1p', 'c1ol_i', 'c1ol_v', 'V(C)', 'V(R)', 'I(C,R)'),
-  plot_species=c('l1il_i1p', 'l1ol_i', 'l1ol_v'),
-  plot_species_dotted=c('V(L)', 'I(R,L)'),
+  #species=c('x', 'c1l_dvp', 'c1l_dvn', 'c1ol_ip', 'c1ol_in',  'c1ol_vp', 'c1ol_vn'),
+  #species=c('x', 'c1ol_ip', 'c1ol_vp'),
+  #species=c('x', 'y', 'z'),
+  #species=c('c1il_v1p', 'c1ol_i', 'c1ol_v', 'V(C)', 'V(R)', 'I(C,R)'),
+  species=c('l1il_i1p', 'l1ol_i', 'l1ol_v'),
+  species_dotted=c('V(L)', 'I(R,L)'),
   chart_title = 'Inductor Step Response DSD i=10[A] R=500[ohm] L=50e-4[H]',
   timing
 )
@@ -204,8 +204,8 @@ print(cap_sim)
 
 #Plot_behavior(
 #  resultado_4dom$behavior, circuit, gate_number, minimum, maximum,
-#  plot_species=c('l1il_i', 'l1ol_i', 'l1ol_v'),
-#  plot_species_dotted=c('V(L)', 'I(R,L)'),
+#  species=c('l1il_i', 'l1ol_i', 'l1ol_v'),
+#  species_dotted=c('V(L)', 'I(R,L)'),
 #  chart_title = 'Inductor Response DSD i=10[mA] R=500[ohm] L=5e-3[F]',
 #  timing
 #)

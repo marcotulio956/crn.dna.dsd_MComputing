@@ -23,6 +23,6 @@ I_pulse <- function(t) ifelse(t >= 20 & t <= 180, 10, 0)
 plot_izhikevich_with_Plot_behavior(timing, I = I_pulse,
                                   params = list(a=0.02, b=0.2, c=-65, d=8, v0=-65),
                                   y_min = -80, y_max = 40,
-                                  plot_species = c("v", "u", "I"),
-                                  plot_species_dotted = c("I"),
+                                  species = c("v", "u", "I"),
+                                  species_dotted = c("I"),
                                   chart_title = "Regular Spiking (RS) — v, u, I")

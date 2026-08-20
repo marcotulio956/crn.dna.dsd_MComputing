@@ -81,85 +81,76 @@ React_stochastic <-function(circuit, volume = 10, seed = NULL) {
 }
 
 
-Plot_behavior <- function( title = "", result, circuit=NULL, species = c(), species_dotted = c(), normalize = TRUE, intercept=FALSE, ymin, ymax) {
-  if(normalize==TRUE){
-    behavior_scaled <- behavior
-    behavior_scaled[, -1] <- lapply(behavior[, -1], function(x) {
-      if(max(x) == min(x)) return(x) # prevent division by zero for constant columns
-      (x - min(x)) / (max(x) - min(x))
-    })
-    result <- behavior_scaled
-  }
-  if(length(species) == 0) {
-    species <- circuit$species
-  }
-  g <- plot_behavior(result, title = title,
-                     species = species,
-                     species_dotted = species_dotted,
-                     x_label     = 'Time (s)',
-                     y_label     = 'Concentration (M)',
-                     legend_name = 'Species'
-  )
-  
-  if (intercept){
-    g <- g + geom_hline(yintercept=min, linetype="dashed", color = "green", size=1)
-    g <- g + geom_hline(yintercept=max, linetype="dashed", color = "red", size=1)
-    
-  }
-  
-  print(g)
-  
-}
-
-Plot_behavior_circuit <- function(
-  result, circuit, gate_numbers, min, max, 
-  plot_species=FALSE, plot_species_dotted=FALSE, chart_title="test",
-  timing
+Plot_behavior <- function(
+    result, circuit = NULL, gate_numbers = NULL, 
+    min = NULL, max = NULL, 
+    species = NULL, species_dotted = NULL, 
+    chart_title = "Behavior Plot", intercept = FALSE,
+    normalize = FALSE
 ) {
-
-  species_to_plot = c()
-    dotted_species_to_plot = NULL
-  if(!length(plot_species)){
-      if(!length(gate_numbers)){
-          gate_numbers <- 1:length(circuit$gates)
+  
+  if (normalize) {
+    result_scaled <- result
+    # Apply min-max scaling to all columns except the first one (Time)
+    result_scaled[, -1] <- lapply(result[, -1], function(x) {
+      x_min <- min(x, na.rm = TRUE)
+      x_max <- max(x, na.rm = TRUE)
+      
+      if (x_max == x_min) {
+        return(x) # Prevent division by zero for constant columns
       }
-      print(jn(gate_numbers, " gate numbers", 1:length(circuit$gates)))
-      for(i in gate_numbers){
-          print(circuit$gates[i]$species)
-          for(j in circuit$gates[i]$species) {
-              species_to_plot <- append(species_to_plot, j)
-          }
-      }
-  }else{
-    species_to_plot = plot_species 
+      return((x - x_min) / (x_max - x_min))
+    })
+    
+    result <- result_scaled
+    y_label_text <- 'Normalized Concentration (0 to 1)'
+  } else {
+    y_label_text <- 'Concentration (M)'
   }
 
-  if(length(plot_species_dotted) && !isFALSE(plot_species_dotted)) {
-    dotted_species_to_plot <- plot_species_dotted
+  species_to_plot <- c()
+  
+  if (!is.null(species) && length(species) > 0) {
+    species_to_plot <- species 
+  } else if (!is.null(gate_numbers) && length(gate_numbers) > 0 && !is.null(circuit)) {
+    for (i in gate_numbers) {
+      species_to_plot <- c(species_to_plot, circuit$gates[[i]]$species)
+    }
+    species_to_plot <- unique(species_to_plot)
+  } else if (!is.null(circuit)) {
+    species_to_plot <- circuit$species
+  }
+  
+  dotted_species_to_plot <- NULL
+  if (!is.null(species_dotted) && length(species_dotted) > 0) {
+    dotted_species_to_plot <- species_dotted
   }
 
-  print("Species to plot:")
   g <- plot_behavior(result, 
                      species = species_to_plot,
                      species_dotted = dotted_species_to_plot,
                      chart_title = chart_title, 
                      x_label     = 'Time (s)',
-                     y_label     = 'Concentration (M)',
+                     y_label     = y_label_text,
                      legend_name = 'Species',
                      geom_list   = c('line', 'point'),
                      variable_line_type = FALSE,
                      variable_point_type = TRUE
   )
 
-  if (!is.null(min)) {
-    g <- g + geom_hline(yintercept = min, linetype = "dashed", color = "green", linewidth = 1)
+  if (intercept || !is.null(min)) {
+    min_val <- ifelse(is.null(min), 0, min) 
+    g <- g + geom_hline(yintercept = min_val, linetype = "dashed", color = "green", linewidth = 1)
+  }
+  
+  if (intercept || !is.null(max)) {
+    # If normalized, the absolute max should probably be 1. Otherwise, default to 10.
+    max_val <- ifelse(is.null(max), ifelse(normalize, 1, 10), max) 
+    g <- g + geom_hline(yintercept = max_val, linetype = "dashed", color = "red", linewidth = 1)
   }
 
-  if (!is.null(max)) {
-    g <- g + geom_hline(yintercept = max, linetype = "dashed", color = "red", linewidth = 1)
-  }
-
-  print(g)
+  # print(g)
+  return(g)
 }
 
 # reactions <- append_reaction(reactions, "a -_. b")

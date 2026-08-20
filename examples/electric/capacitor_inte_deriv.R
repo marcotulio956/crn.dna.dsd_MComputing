@@ -67,14 +67,14 @@ gate_number = 1
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
-  #plot_species=c('c1ol_voltage', 'c1_l_v_rate1','c1ol_current','c1ol_charge'),
-  #plot_species=c('c1il_voltage_positive', 'c1ol_charge', 'c1ol_voltage', 'c1ol_current'),
-  plot_species=c('v1_vcc', 'c2ol_vn', 'c2ol_vp', 'c2l_pcharge', 'c2l_ncharge','c2ol_ip', 'c2ol_in'),
-  #plot_species=c('c3l_pcharge', 'c3l_ncharge', 'l4l_pflux', 'l4l_nflux'),
+  #species=c('c1ol_voltage', 'c1_l_v_rate1','c1ol_current','c1ol_charge'),
+  #species=c('c1il_voltage_positive', 'c1ol_charge', 'c1ol_voltage', 'c1ol_current'),
+  species=c('v1_vcc', 'c2ol_vn', 'c2ol_vp', 'c2l_pcharge', 'c2l_ncharge','c2ol_ip', 'c2ol_in'),
+  #species=c('c3l_pcharge', 'c3l_ncharge', 'l4l_pflux', 'l4l_nflux'),
   
   timing
 )
-# Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, plot_species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))
+# Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))
 
 #resultado_4dom <- React_4domain_circuit(circuit)
 #

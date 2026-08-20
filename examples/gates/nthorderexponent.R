@@ -48,7 +48,7 @@ result_crn <- React_circuit(circuit)
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
-  plot_species=c('x', 'y'),
+  species=c('x', 'y'),
   chart_title ="exponent y=x^a",
 	timing = timing
 )

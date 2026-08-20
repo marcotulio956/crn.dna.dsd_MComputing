@@ -110,12 +110,12 @@ for (name in names(izh_presets)) {
     timing = timing,
     I = I_fun,
     params = params,
-    circuit = NULL,                # wrapper will use plot_species explicitly
+    circuit = NULL,                # wrapper will use species explicitly
     gate_numbers = NULL,
     y_min = -90,                   # optional horizontal lines to help read scale
     y_max = 40,
-    plot_species = c("v","u","I","spike"),  # show v, u, input current, spike markers
-    plot_species_dotted = c("I"), 
+    species = c("v","u","I","spike"),  # show v, u, input current, spike markers
+    species_dotted = c("I"), 
     chart_title = title
   )
   # pause briefly so you can view each plot interactively; comment out if running non-interactive

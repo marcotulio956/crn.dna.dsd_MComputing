@@ -203,8 +203,8 @@ for (name in names(izh_presets)) {
 
   # --- 7) Call your Plot_behavior:
   # Choose which species to plot solid (model) and which dotted (sim). Adjust names if you prefer different labels.
-  plot_species_model <- c('v_crn', 'u_crn', 'I_crn', 'izh_spike')
-  plot_species_sim   <- c('V_sim', 'U_sim')   # these will be plotted dotted
+  species_model <- c('v_crn', 'u_crn', 'I_crn', 'izh_spike')
+  species_sim   <- c('V_sim', 'U_sim')   # these will be plotted dotted
 
   Plot_behavior(
     result = result,
@@ -212,8 +212,8 @@ for (name in names(izh_presets)) {
     gate_numbers = NULL,
     min = -90,
     max = 40,
-    plot_species = plot_species_model,
-    plot_species_dotted = plot_species_sim,
+    species = species_model,
+    species_dotted = species_sim,
     chart_title = sprintf("%s — CRN (solid) vs ODE sim (dotted) — %s", name, title),
     timing = timing
   )

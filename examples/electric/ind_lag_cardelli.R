@@ -95,9 +95,9 @@ result_crn['V(L)2'] <- 1 * (simRL$inductor_voltage)
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
-  #plot_species=c('l1il_i1p', 'l1ol_ip', 'l1ol_vp', 'l1ol_in', 'l1ol_vn', 'l1ol_vout'),
-  plot_species=c('l1il_v1p', 'l1ol_vout', 'l1ol_iout'), #  'y', 'z'),
-  plot_species_dotted=c('I(L)', 'V(R)'), # 'I(L)2', 'V(L)2'),
+  #species=c('l1il_i1p', 'l1ol_ip', 'l1ol_vp', 'l1ol_in', 'l1ol_vn', 'l1ol_vout'),
+  species=c('l1il_v1p', 'l1ol_vout', 'l1ol_iout'), #  'y', 'z'),
+  species_dotted=c('I(L)', 'V(R)'), # 'I(L)2', 'V(L)2'),
   chart_title = 'Oscilator Inductor Current Lag DSD i=\'l1il_v1p\' R=0.1[ohm] L=10[H]',
   timing
 )
@@ -132,7 +132,7 @@ print(cmp)
 
 #Plot_behavior(
 #  resultado_4dom$behavior, circuit, gate_number, minimum, maximum,
-#  plot_species=c('c1ol_vp', 'c1ol_ip', 'c1ol_in', 'c1ol_iout'),
+#  species=c('c1ol_vp', 'c1ol_ip', 'c1ol_in', 'c1ol_iout'),
 #  chart_title = 'Oscilator Capacitor Current Lead DSD',
 #  timing
 #)

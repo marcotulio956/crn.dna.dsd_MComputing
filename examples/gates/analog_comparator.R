@@ -52,7 +52,7 @@ result_crn <- React_circuit(circuit)
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
-  plot_species=c('GT', 'LT'),
+  species=c('GT', 'LT'),
   chart_title ="comparator a>b",
   timing = timing
 )

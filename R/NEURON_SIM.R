@@ -87,12 +87,12 @@ plot_izhikevich_with_Plot_behavior <- function(
   timing,
   I = 10,
   params = list(a=0.02, b=0.2, c=-65, d=8, v0=-65, u0=NULL, v_thresh = 30),
-  circuit = NULL,          # can be NULL because we pass plot_species explicitly
+  circuit = NULL,          # can be NULL because we pass species explicitly
   gate_numbers = NULL,
   y_min = NULL,            # horizontal green line (min) or NULL
   y_max = NULL,            # horizontal red line (max) or NULL
-  plot_species = c("v","u","I"),
-  plot_species_dotted = c("I"),
+  species = c("v","u","I"),
+  species_dotted = c("I"),
   chart_title = "Izhikevich neuron"
 ) {
   # run simulation (expects simulate_izhikevich to be defined)
@@ -113,11 +113,11 @@ plot_izhikevich_with_Plot_behavior <- function(
     spikes <- rep(0, nrow(result))
     spikes[sim$spike_idx] <- 1
     result$spike <- spikes
-    # If user didn't request 'spike' in plot_species, we won't add it automatically
+    # If user didn't request 'spike' in species, we won't add it automatically
   }
   
   # Call your Plot_behavior wrapper
-  # Note: Plot_behavior signature: Plot_behavior(result, circuit, gate_numbers, min, max, plot_species, plot_species_dotted, chart_title, timing)
+  # Note: Plot_behavior signature: Plot_behavior(result, circuit, gate_numbers, min, max, species, species_dotted, chart_title, timing)
   # We pass circuit (can be NULL) and gate_numbers (NULL), and timing as last arg
   Plot_behavior(
     result = result,
@@ -125,8 +125,8 @@ plot_izhikevich_with_Plot_behavior <- function(
     gate_numbers = gate_numbers,
     min = y_min,
     max = y_max,
-    plot_species = plot_species,
-    plot_species_dotted = plot_species_dotted,
+    species = species,
+    species_dotted = species_dotted,
     chart_title = chart_title,
     timing = timing
   )
@@ -489,8 +489,8 @@ plot_lif_with_Plot_behavior <- function(
   gate_numbers = NULL,
   y_min = NULL,
   y_max = NULL,
-  plot_species = c("v", "I", "spike"),
-  plot_species_dotted = c("I"),
+  species = c("v", "I", "spike"),
+  species_dotted = c("I"),
   chart_title = "LIF neuron"
 ) {
   sim <- simulate_lif(
@@ -519,8 +519,8 @@ plot_lif_with_Plot_behavior <- function(
     gate_numbers = gate_numbers,
     min = y_min,
     max = y_max,
-    plot_species = plot_species,
-    plot_species_dotted = plot_species_dotted,
+    species = species,
+    species_dotted = species_dotted,
     chart_title = chart_title,
     timing = timing
   )

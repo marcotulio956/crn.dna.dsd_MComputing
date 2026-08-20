@@ -239,14 +239,14 @@ title = 'RLC Circuit'
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
-  #plot_species=c( 'iLp', 'iLn'),
-  #plot_species=c('x', 'vCp', 'vCn', 'vLp', 'vLn'),
-  plot_species=c(),
+  #species=c( 'iLp', 'iLn'),
+  #species=c('x', 'vCp', 'vCn', 'vLp', 'vLn'),
+  species=c(),
   chart_title = title,
   timing
 )
 
-# Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, plot_species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))
+# Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))
 
 #resultado_4dom <- React_4domain_circuit(circuit)
 #

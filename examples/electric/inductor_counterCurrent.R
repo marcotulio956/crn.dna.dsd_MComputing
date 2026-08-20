@@ -119,11 +119,11 @@ gate_number = 1
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
-  plot_species=c('l1ol_current', 'l1ol_voltage'),
-  #plot_species=c('l1_l_i_out'),
+  species=c('l1ol_current', 'l1ol_voltage'),
+  #species=c('l1_l_i_out'),
   timing
 )
-# Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, plot_species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))
+# Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))
 
 #resultado_4dom <- React_4domain_circuit(circuit)
 #

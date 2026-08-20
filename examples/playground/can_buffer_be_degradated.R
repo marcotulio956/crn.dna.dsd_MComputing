@@ -65,7 +65,7 @@ gate_number = 2
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
-  plot_species=c('q', 'q_init', 'q_total'),
+  species=c('q', 'q_init', 'q_total'),
   timing
 )
 

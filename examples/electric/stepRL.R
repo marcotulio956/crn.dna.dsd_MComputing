@@ -161,11 +161,11 @@ result_crn['I(L2)'] <- result_crn['I(L2)_p3v']
 
 Plot_behavior(
   result_crn, circuit, gate_number, minimum, maximum,
-  #plot_species=c('l1il_i1p'), # show model result
-  # plot_species=c('V(S)_vs', 'I(L)_vs', 'V(R)_vs', 'V(L)_vs'), # show results 1
-  # plot_species=c('I(S)_cs', 'I(L)_cs', 'V(L)_cs', 'V(R)_cs'), # show results 2
-  plot_species=c('l1il_vp', 'l1ol_v', 'l1ol_i'), # 'l1il_vp', 'l1ol_v', 'l1ol_i'
-  plot_species_dotted = c(#'I(L)_vs','V(L)_vs',
+  #species=c('l1il_i1p'), # show model result
+  # species=c('V(S)_vs', 'I(L)_vs', 'V(R)_vs', 'V(L)_vs'), # show results 1
+  # species=c('I(S)_cs', 'I(L)_cs', 'V(L)_cs', 'V(R)_cs'), # show results 2
+  species=c('l1il_vp', 'l1ol_v', 'l1ol_i'), # 'l1il_vp', 'l1ol_v', 'l1ol_i'
+  species_dotted = c(#'I(L)_vs','V(L)_vs',
     #'I(L)_cs','V(L)_cs'#,
     #'I(L)_pv', #  works
     #'I(S)_sc', 'V(L)_sc' # works
@@ -175,17 +175,17 @@ Plot_behavior(
     # show re name
     'V(R)',  'I(L2)'
     
-  ), #  #  plot_species_dotted=c('I(L)_vs', 'V(R)_vs', 'V(L)_vs'), //  plot_species_dotted=c('I(L)_cs', 'V(R)_cs', 'V(L)_cs'),
+  ), #  #  species_dotted=c('I(L)_vs', 'V(R)_vs', 'V(L)_vs'), //  species_dotted=c('I(L)_cs', 'V(R)_cs', 'V(L)_cs'),
   chart_title = sprintf('Inductor Step Response DSD Vin=10[V] R=%s[ohm] L1,2=%s[H]', R, L),
   timing
 )
-# Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, plot_species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))
+# Plot_behavior(result_crn, circuit, gate_number, minimum, maximum, specify_species = TRUE, species=c('c1ol_current', 'c1sub1_C', 'c1_l_dv_out'))
 
 #resultado_4dom <- React_4domain_circuit(circuit)
 
 #Plot_behavior(
 #  resultado_4dom$behavior, circuit, gate_number, minimum, maximum,
-#  plot_species=c('l1il_i1p', 'l1ol_in', 'l1ol_vp', 'l1ol_vn'),
+#  species=c('l1il_i1p', 'l1ol_in', 'l1ol_vp', 'l1ol_vn'),
 #  chart_title = 'Step Response DSD Iin=6.32[mA] L=4.75[mH]',
 #  timing
 #)

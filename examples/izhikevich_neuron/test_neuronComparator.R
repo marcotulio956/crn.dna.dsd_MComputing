@@ -99,8 +99,8 @@ run_comparator_test_const <- function(vp_value, test_name, timing, c_threshold =
   rownames(result) <- as.character(timing)
 
   # Choose species to plot (solid) and nothing dotted for this test
-  plot_species_model <- c('v_in', 'xpos', 'xneg', 'seed', 'control')
-  plot_species_sim   <- c()  # nothing dotted
+  species_model <- c('v_in', 'xpos', 'xneg', 'seed', 'control')
+  species_sim   <- c()  # nothing dotted
 
   Plot_behavior(
     result = result,
@@ -108,8 +108,8 @@ run_comparator_test_const <- function(vp_value, test_name, timing, c_threshold =
     gate_numbers = NULL,
     min = NULL,
     max = NULL,
-    plot_species = plot_species_model,
-    plot_species_dotted = plot_species_sim,
+    species = species_model,
+    species_dotted = species_sim,
     chart_title = sprintf("Comparator test — %s — v_p=%g thresh=%g", test_name, vp_value, c_threshold),
     timing = timing
   )
@@ -175,8 +175,8 @@ run_comparator_test_pulse <- function(amplitude, duty = 0.1, freq = 1, timing, c
   rownames(result) <- as.character(timing)
 
   Plot_behavior(result = result, circuit = circuit, gate_numbers = NULL, min = NULL, max = NULL,
-                plot_species = c('v_in','xpos','xneg','control'),
-                plot_species_dotted = c(),
+                species = c('v_in','xpos','xneg','control'),
+                species_dotted = c(),
                 chart_title = sprintf("Comparator pulsed test amplitude=%g (thresh=%g)", amplitude, c_threshold),
                 timing = timing)
 

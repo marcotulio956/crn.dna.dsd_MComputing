@@ -136,7 +136,7 @@ plot_behavior <- function(
     x_label = 'Time (s)',
     y_label = 'Concentration (M)',
     legend_name = 'Species',
-    geom_list = list('line'),
+    geom_list = c('line'), # Changed from list to vector for easier handling
     save_file_name = '.localdata/Rplots_',
     show_legend = TRUE,
     show_x_label_name = TRUE,
@@ -146,73 +146,69 @@ plot_behavior <- function(
     variable_point_type = FALSE,
     line_types = NULL
 ) {
-    
-# FACETS
-#     library(tidyverse)
+    time_col <- colnames(behavior)[1]
 
-# # Reshape data to long format
-# behavior_long <- behavior %>%
-#   pivot_longer(cols = -time, names_to = "variable", values_to = "value")
-
-# # Plot each variable in its own panel with its own scale
-# ggplot(behavior_long, aes(x = time, y = value)) +
-#   geom_line() +
-#   facet_wrap(~ variable, scales = "free_y") +
-#   theme_minimal()
-
-
-    geom <- function(keyword, linetype = "solid") {
-        switch(keyword,
-               'line' = ggplot2::geom_line(size = 1.3, linetype = linetype),
-               'point' = ggplot2::geom_point(size = 2.3),
-               stop(paste0("'", keyword, "' is not a valid geometry"))
-        )
-    }
     if (is.null(species) && is.null(species_dotted)) {
-        species <- names(behavior)[names(behavior) != "time"]
+        species <- names(behavior)[names(behavior) != time_col]
     }
+    
     all_species <- unique(c(species, species_dotted))
     for (specie in all_species) {
         if (!(specie %in% colnames(behavior))) {
-            print(paste("WARNING: The specie", specie, "is not in the behavior data frame, and it was been removed."))
-            # remove specie from bahavior
+            print(paste("WARNING: The specie", specie, "is not in the behavior data frame, and it has been removed."))
             species <- setdiff(species, specie)
             species_dotted <- setdiff(species_dotted, specie)
         }
     }
-    # pdf(NULL)
+
     g <- ggplot2::ggplot() +
         ggplot2::theme_minimal(base_size = 18) +
         ggplot2::labs(x = x_label, y = y_label, color = legend_name) +
-        ggplot2::scale_color_brewer(palette = "Dark2") +
         ggplot2::ggtitle(title)
-
-    # Solid lines
-    if (!is.null(species)) {
-        df_solid <- behavior[, c("time", unlist(species)), drop = FALSE]
-        dfm_solid <- reshape2::melt(df_solid, id.vars = "time")
-        g <- g + ggplot2::geom_line(
-            data = dfm_solid,
-            ggplot2::aes(x = time, y = value, color = variable),
-            size = 1.3,
-            linetype = "solid"
-        )
+    
+    # Optional: Dark2 only has 8 colors. If you plot more than 8 species, it will fail.
+    # We add a check so it doesn't crash on large circuits.
+    if (length(all_species) <= 8) {
+        g <- g + ggplot2::scale_color_brewer(palette = "Dark2")
     }
 
-    # Dotted/dashed lines
-    if (!is.null(species_dotted)) {
-        df_dotted <- behavior[, c("time", species_dotted), drop = FALSE]
-        dfm_dotted <- reshape2::melt(df_dotted, id.vars = "time")
-        g <- g + ggplot2::geom_line(
-            data = dfm_dotted,
-            ggplot2::aes(x = time, y = value, color = variable),
-            size = 1.3,
-            linetype = "dotted"
-        )
+    if (length(species) > 0) {
+        df_solid <- behavior[, c(time_col, species), drop = FALSE]
+        dfm_solid <- reshape2::melt(df_solid, id.vars = time_col)
+        
+        if ('line' %in% geom_list) {
+            g <- g + ggplot2::geom_line(
+                data = dfm_solid,
+                ggplot2::aes(x = .data[[time_col]], y = value, color = variable),
+                linewidth = 1.3, # FIXED from 'size'
+                linetype = "solid"
+            )
+        }
+        if ('point' %in% geom_list) {
+            g <- g + ggplot2::geom_point(
+                data = dfm_solid,
+                ggplot2::aes(x = .data[[time_col]], y = value, color = variable),
+                size = 2.3
+            )
+        }
+    }
+
+    if (length(species_dotted) > 0) {
+        df_dotted <- behavior[, c(time_col, species_dotted), drop = FALSE]
+        dfm_dotted <- reshape2::melt(df_dotted, id.vars = time_col)
+        
+        if ('line' %in% geom_list) {
+            g <- g + ggplot2::geom_line(
+                data = dfm_dotted,
+                ggplot2::aes(x = .data[[time_col]], y = value, color = variable),
+                linewidth = 1.3, # FIXED from 'size'
+                linetype = "dotted"
+            )
+        }
     }
 
     if (!show_legend) {
-        g <- g + ggplot2::guides(color = FALSE)
+        g <- g + ggplot2::guides(color = "none") # FIXED from FALSE
     }
 
     if (y_origin_0) {
@@ -228,13 +224,18 @@ plot_behavior <- function(
     }
 
     if (!is.null(save_file_name)) {
-        ggplot2::ggsave(paste0(save_file_name, format(Sys.time(), "%Y-%m-%d_%H-%M-%S"), ".png"), plot=g, dpi = 300, width = 10, height = 5, create.dir = TRUE)
+        file_path <- paste0(save_file_name, format(Sys.time(), "%Y-%m-%d_%H-%M-%S"), ".png")
+        
+        dir_name <- dirname(file_path)
+        if (!dir.exists(dir_name)) {
+            dir.create(dir_name, recursive = TRUE, showWarnings = FALSE)
+        }
+        
+        ggplot2::ggsave(file_path, plot = g, dpi = 300, width = 10, height = 5)
     }
 
     return(g)
 }
-
-
 
 # species = c(circuito$gates[[numero]]$species$input1,
 #                                             circuito$gates[[numero]]$species$input2,
