@@ -81,7 +81,7 @@ React_stochastic <-function(circuit, volume = 10, seed = NULL) {
 }
 
 
-Plot_behavior_ <- function(
+Plot_behavior <- function(
     result, circuit = NULL, gate_numbers = NULL, 
     min = NULL, max = NULL, 
     species = NULL, species_dotted = NULL, 

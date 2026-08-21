@@ -98,11 +98,11 @@ behavior_dsd <- React_4domain(circuit, forced_concentrations = forced_concentrat
 
 behavior_dsd['V(C)'] <- simRC$capacitor_voltage
 behavior_dsd['I(R,C)'] <- simRC$current_output
-behavior_dsd['c_v'] <- (behavior_dsd['c3ol_vp'] - behavior_dsd['c3ol_vn'] )
-behavior_dsd['c_i'] <- (behavior_dsd['c3ol_ip'] - behavior_dsd['c3ol_in'] )
+behavior_dsd['c_v'] <- behavior_dsd$behavior['c3ol_vp'] - behavior_dsd$behavior['c3ol_vn']
+behavior_dsd['c_i'] <- behavior_dsd$behavior['c3ol_ip'] - behavior_dsd$behavior['c3ol_in'] 
 
 
 title <- jn("dsd rate:", rate, " RC:", resistance, ",",capacitance)
-Plot_behavior(title = title, behavior_dsd, circuit, species=c('c_v', 'c_i'), species_dotted=c('V(C)','I(Cp)'))
+Plot_behavior(behavior_dsd, circuit, title = title, species=c('c_v', 'c_i'), species_dotted=c('V(C)','I(Cp)'))
 
   

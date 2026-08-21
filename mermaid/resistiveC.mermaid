@@ -1,0 +1,57 @@
+flowchart LR
+
+    classDef block fill:#ffffff,stroke:#000000,stroke-width:2px;
+    classDef signal fill:#ffffff,stroke:#000000,stroke-width:0px;
+
+
+    Vin["$$v_{\mathrm{in}}^{\pm}$$"]
+
+    R["$$\times R_C$$"]
+
+    SUB["$$v_C^{\pm}   =    v_{\mathrm{in}}^{\pm}    -    v_R^{\pm}$$"]
+
+    D["$$\displaystyle\frac{d}{dt}$$"]
+
+    C["$$\times C$$"]
+
+    I["$$i_C^{\pm}$$"]
+
+
+    %% Current feedback through internal resistance
+    I -->|"$$i_C^{\pm}$$"| R
+
+    %% Internal resistive voltage
+    R -->|"$$v_R^{\pm}=R_C i_C^{\pm}$$"| SUB
+
+    %% Applied terminal voltage
+    Vin -->|"$$v_{\mathrm{in}}^{\pm}$$"| SUB
+
+    %% Voltage across ideal capacitor
+    SUB -->|"$$v_C^{\pm}$$"| D
+
+    %% Capacitor constitutive relation
+    D -->|"$$\displaystyle    \frac{dv_C^{\pm}}{dt}$$"| C
+
+    %% Generated capacitor current
+    C -->|"$$i_C^{\pm}    =    C\frac{dv_C^{\pm}}{dt}$$"| I
+
+
+	    Vin["$$v_{\mathrm{in}}^{\pm}$$"]
+    R["$$\times R_L$$"]
+    SUB["$$v_L^{\pm}=v_{\mathrm{in}}^{\pm}-v_R^{\pm}$$"]
+    LINV["$$\times \frac{1}{L}$$"]
+    INT["$$\displaystyle\int dt$$"]
+    I["$$i_L^{\pm}$$"]
+
+    I -->|"$$i_L^{\pm}$$"| R
+    R -->|"$$v_R^{\pm}=R_L i_L^{\pm}$$"| SUB
+    Vin -->|"$$v_{\mathrm{in}}^{\pm}$$"| SUB
+    SUB -->|"$$v_L^{\pm}$$"| LINV
+    LINV -->|"$$\displaystyle\frac{di_L^{\pm}}{dt}$$"| INT
+    INT -->|"$$i_L^{\pm}$$"| I
+
+    class R,SUB,LINV,INT block;
+    class Vin,I signal;
+
+    class R,SUB,D,C block;
+    class Vin,I signal;

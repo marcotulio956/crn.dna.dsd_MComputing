@@ -159,7 +159,7 @@ points = (t1 - t0) * t1
 timing  <- seq(t0, t1, length.out = points) 
 circuit <- Make_Generic(timing)
 
-behavior <- React_circuit(circuit,engine="desolve")
+behavior <- React_4domain(circuit,engine="desolve")
 
 behavior[['ref_sin']] <- simulate_sin(timing)
 behavior[['ref_step']] <- square_input(timing, period = 10, pulse_width = 10/2, delay = 0)

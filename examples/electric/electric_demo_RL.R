@@ -17,7 +17,7 @@ source('R/forced_concentrations.R')
 
 timing <- seq(0,45, by = 0.01)
 
-rate = 1 # the greater the rate lesser is its resistivity 
+rate = 10 # the greater the rate lesser is its resistivity 
 
 inductance = 10
 
@@ -40,12 +40,13 @@ l2 <- Make_Circuit_Pure_Inductor(ind2$name, ind2$il, ind2$ol, ind2$ic, rate)
 
 circuit <- make_circuit(timing)
 
-circuit <- circuit_add_compile_gates(circuit, l0)
-circuit <- circuit_add_compile_gates(circuit, l1)
+# circuit <- circuit_add_compile_gates(circuit, l0)
+# circuit <- circuit_add_compile_gates(circuit, l1)
 circuit <- circuit_add_compile_gates(circuit, l2)
 
 forced_concentrations = list(
-  v_in = function(t) square_input(t, pulse_width = 30, period = 60, amplitude = 10)
+  # v_in = function(t) simulate_sin(t)
+  v_in = function(t) sinusoidal_input(t)
 )
 
 behavior <- React_circuit(circuit, forced_concentrations = forced_concentrations, engine = 'desolve')
@@ -59,27 +60,26 @@ simL <- simulate_L_voltage_source(
   timing, behavior[['v_in']], inductance
 )
 
-behavior['v_in'] <- behavior[['v_in']]
+behavior[['V(L)']] <- simRL$inductor_voltage
+behavior[['I(R,L)']] <- simRL$current_output
 
-behavior['V(L)'] <- simRL$inductor_voltage
-behavior['I(R,L)'] <- simRL$current_outupt
+behavior[['I(L)']] <- simL$current_output
 
-behavior['I(Lp)'] <- simL$current_outupt
-
-behavior['l0ol_v'] <- ( behavior['l0ol_vp'] - behavior['l0ol_vn'] )
-behavior['l0ol_i'] <- ( behavior['l0ol_ip'] - behavior['l0ol_in'] )
-
-
-behavior['l1ol_v'] <- ( behavior['l1ol_vp'] - behavior['l1ol_vn'] )
-behavior['l1ol_i'] <- ( behavior['l1ol_ip'] - behavior['l1ol_in'] )
+# behavior['l0ol_v'] <- ( behavior['l0ol_vp'] - behavior['l0ol_vn'] )
+# behavior['l0ol_i'] <- ( behavior['l0ol_ip'] - behavior['l0ol_in'] )
+# 
+# 
+# behavior['l1ol_v'] <- ( behavior['l1ol_vp'] - behavior['l1ol_vn'] )
+# behavior['l1ol_i'] <- ( behavior['l1ol_ip'] - behavior['l1ol_in'] )
 
 
-behavior['l2ol_v'] <- ( behavior['l2ol_vp'] - behavior['l2ol_vn'] )
-behavior['l2ol_i'] <- ( behavior['l2ol_ip'] - behavior['l2ol_in'] )
+# behavior['l2ol_v'] <- ( behavior['l2ol_vp'] - behavior['l2ol_vn'] )
+behavior['il'] <- ( behavior['l2ol_ip'] - behavior['l2ol_in'] )
 
-title <- jn("rate:", rate, " RL:", resistance, ",",inductance)
-Plot_behavior(title = title, behavior, circuit, species=c('l0ol_v', 'l0ol_i'), species_dotted=c('V(L)','I(R,L)'), normalize = FALSE)
+title <- jn("Oscilator Pure Inductor Current Lag DSD Vin = sin, C = 1[mH]")
 
-Plot_behavior(title = title, behavior, circuit, species=c('l1ol_v', 'l1ol_i'), species_dotted=c('V(L)','I(R,L)'), normalize = FALSE)
+# Plot_behavior(title = title, behavior, circuit, species=c('l0ol_v', 'l0ol_i'), species_dotted=c('V(L)','I(R,L)'), normalize = FALSE)
+# 
+# Plot_behavior(title = title, behavior, circuit, species=c('l1ol_v', 'l1ol_i'), species_dotted=c('V(L)','I(R,L)'), normalize = FALSE)
 
-Plot_behavior(title = title, behavior, circuit, species=c('l2ol_v', 'l2ol_i'), species_dotted=c('I(Lp)'), normalize = FALSE)
+Plot_behavior(title = title, behavior, circuit, species=c('v_in', 'il'), species_dotted=c('I(L)'), normalize = FALSE)

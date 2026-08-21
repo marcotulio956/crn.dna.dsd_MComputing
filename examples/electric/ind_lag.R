@@ -33,7 +33,7 @@ Make_Generic <- function(timing) {
   
   g_dalchau <- Make_Oscillator_Dalchau('osc', 'y', 'z', 'l1il_i1p', 9, 8, 5, 10e-2)
   
-  l1 <- Make_Inductor_Component(1, L)
+  l1 <- Make_Inductor_Component(1, 1, L)
 
   l1$il$current_positive <- 'l1il_i1p'
   l1$ol$voltage_negative <- 'l1ol_vn'
