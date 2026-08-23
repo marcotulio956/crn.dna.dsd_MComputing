@@ -20,7 +20,7 @@ source('R/forced_concentrations.R')
 
 timing <- seq(0, 60, by = 0.01)
 
-rate <- 1
+rate <- 100
 
 # Fixed capacitance
 capacitance <- 10
@@ -47,13 +47,13 @@ Make_RC <- function(timing, resistance, id) {
   # Input voltage connected to RC input
   cap$il$voltage_positive <- 'v_in'
   
-  g_dalchau <- Make_Oscillator_Dalchau('sin', 'x', 'v_in', 'z', 1e-3, 1e-3, 15, 4e-1)
-  c_comparator <- Make_Mux2_balanced(
-    'mux1', 'x', 'v_in', 'low', 'high', 'comp_out',
-    0, 0, 3, 8, 0, 7.0e-1
-  )
-  circuit <- circuit_add_gate(circuit, g_dalchau)
-  circuit <- circuit_add_gate(circuit, c_comparator)
+  # g_dalchau <- Make_Oscillator_Dalchau('sin', 'x', 'v_in', 'z', 1e-3, 1e-3, 15, 4e-1)
+  # c_comparator <- Make_Mux2_balanced(
+  #   'mux1', 'x', 'v_in', 'low', 'high', 'comp_out',
+  #   0, 0, 3, 8, 0, 7.0e-1
+  # )
+  # circuit <- circuit_add_gate(circuit, g_dalchau)
+  # circuit <- circuit_add_gate(circuit, c_comparator)
 
   # Compile RC gate
   rc_gate <- Make_Circuit_RC(
@@ -128,7 +128,7 @@ for (i in seq_along(resistances)) {
 
   result <- React_circuit(
     circuit,
-    # forced_concentrations = forced_concentrations,
+    forced_concentrations = forced_concentrations,
     engine = 'diffeqr'
   )
 
@@ -236,7 +236,7 @@ reference_species <- sapply(
 plot_behavior(
   behavior,
   title = sprintf(
-    "RC Response DSD Vin = 10[V], C = 10[mF]",
+    "RC Response DSD Vin=10[V], C=10[mF]",
     capacitance
   ),
   species = c(

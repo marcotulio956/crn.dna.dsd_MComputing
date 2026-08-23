@@ -224,7 +224,9 @@ plot_behavior <- function(
     }
 
     if (!is.null(save_file_name)) {
-        file_path <- paste0(save_file_name, format(Sys.time(), "%Y-%m-%d_%H-%M-%S"), ".png")
+        # If compute time is too fast for the timestamp to change, we can add a random number to the filename to ensure uniqueness.
+        random_suffix <- sample(10000:99999, 1)
+        file_path <- paste0(save_file_name, format(Sys.time(), "%Y-%m-%d_%H-%M-%S_"), random_suffix, ".png")
         
         dir_name <- dirname(file_path)
         if (!dir.exists(dir_name)) {

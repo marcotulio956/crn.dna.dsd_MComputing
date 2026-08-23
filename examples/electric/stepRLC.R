@@ -18,6 +18,7 @@ source('R/neuron_hjelmfelt.R')
 source('R/parser.R')
 source('R/util_functions.R')
 source('R/metric_functions.R')
+source('R/forced_concentrations.R')
 
 jn <- function(...) { paste(..., sep = '') }
 
@@ -25,9 +26,9 @@ library(ggplot2) # plot()
 library(dplyr) # mutate()
 
 behaviours <- list(
-  'O' = c(R = 2.2, L = 1, C = 1),# 2
-  'C' = c(R = 1.2, L = 1, C = 1),# 1 
-  'U' = c(R = 0.25, L = 1, C = 1) # 0.5
+  'O' = c(R = 4, L = 1, C = 1),# 2
+  'C' = c(R = 2, L = 1, C = 1),# 1 
+  'U' = c(R = 1, L = 1, C = 1) # 0.5
 )
 
 
@@ -67,20 +68,20 @@ Make_RLC <- function(timing, regime) {
   circuit <- make_circuit(timing)
   
   # - Dig and Analog
-    g_dalchau <- Make_Oscillator_Dalchau('sin', 'x', 'v1p', 'z', 1e-3, 1e-3, 15, 4e-1)
-    c_comparator <- Make_Mux2_balanced(
-      'mux1',
-      'x', 'v1p',
-      'low', 'high',
-      'comp_out',
-      0, 0,
-      3, 8,
-      0, 7.0e-1
-    )
+    # g_dalchau <- Make_Oscillator_Dalchau('sin', 'x', 'v1p', 'z', 1e-3, 1e-3, 15, 4e-1)
+    # c_comparator <- Make_Mux2_balanced(
+    #   'mux1',
+    #   'x', 'v1p',
+    #   'low', 'high',
+    #   'comp_out',
+    #   0, 0,
+    #   3, 8,
+    #   0, 7.0e-1
+    # )
 
-    # add2circuit
-    circuit <- circuit_add_gate(circuit, g_dalchau)
-    circuit <- circuit_add_gate(circuit, c_comparator)
+    # # add2circuit
+    # circuit <- circuit_add_gate(circuit, g_dalchau)
+    # circuit <- circuit_add_gate(circuit, c_comparator)
   
   rlc <- Make_RLC_Component(R,L,C)
 
@@ -160,7 +161,7 @@ Make_RLC <- function(timing, regime) {
 }
 
 t0 = 0
-t1 = 80
+t1 = 60
 points = (t1 - t0) * 400 # * 80 # Using 50 time points
 timing  <- seq(t0, t1, length.out = points) # Using 50 time points
 
@@ -176,38 +177,53 @@ for (regime in names(behaviours)) {
 
 
   cat(sprintf("Simulating %s RLC circuit...\n", regime))
-  result <- react2(
+  result <- react4(
     species = circuit$species,
     ci = circuit$ci,
     reactions = circuit$reactions,
     ki = circuit$ki,
     t = circuit$t,
     engine = solver,
-    verbose = FALSE
+    verbose = FALSE,
+    forced_concentrations = list(
+      v1p = function(t) square_input(t, pulse_width = 60, period = 60, amplitude = 10)
+    )
   )
-
-
+  simRLC <- simulate_sRLC_voltage_source(
+    timing, result[['v1p']], R, L, C
+  )
   if (!"vc_in" %in% names(behavior)) {
     behavior[["v_in"]] <- result[, "v1p"]
   }
   # all_result[[jn("i_",regime)]] <- result[, "rlcol_ip"] - result[, "rlcol_in"]
   behavior[[jn("vc_",regime)]] <- result[, "rlcol_vcp"] - result[, "rlcol_vcn"] 
+  behavior[[jn("V(C)_",regime)]] <- simRLC$capacitor_voltage
+  behavior[[jn("I(L)_",regime)]] <- simRLC$inductor_current
 
-simRLC <- simulate_sRLC_voltage_source(
-  timing, result_crn[['v1p']], R, L, C
-)
-
+   metrics <- analyze_transient_metrics(
+     timing = timing,
+     v_in = behavior[["v_in"]],
+     vc_model = result[['rlcol_vcp']] - result[['rlcol_vcn']],
+     vc_sim = simRLC$capacitor_voltage,
+     t0 = 0,
+     t1 = 30,
+     resistance = R,
+     inductance = L,
+     capacitance = C
+   )
+    print(metrics)
+}
 #simVcc <- simulate_Vcc(timing)
 #result_crn['Vcc'] <- simVcc
 
 vc_scale <- 1
 # result_crn['rlcol_vc'] <- vc_scale * ( result_crn['rlcl_state1_p'] - result_crn['rlcl_state1_n'])
-result_crn['rlcol_vc'] <- vc_scale * ( result_crn['rlcol_vcp'] - result_crn['rlcol_vcn'])
+# result_crn['rlcol_vc'] <- vc_scale * ( result_crn['rlcol_vcp'] - result_crn['rlcol_vcn'])
  
 
 i_scale <- 1
 # result_crn['rlcol_i'] <- i_scale * (result_crn['rlcl_state2_p'] - result_crn['rlcl_state2_n'])
-result_crn['rlcol_i'] <- i_scale * (result_crn['rlcol_ip'] - result_crn['rlcol_in'])
+# result_crn['rlcol_i'] <- i_scale * (result_crn['rlcol_ip'] - result_crn['rlcol_in'])
 
 
 ### Plot intenal gates
@@ -229,8 +245,8 @@ result_crn['rlcol_i'] <- i_scale * (result_crn['rlcol_ip'] - result_crn['rlcol_i
 # result_crn['l_scaler2'] <- result_crn['rlcl_scaler2_p'] - result_crn['rlcl_scaler2_n']
 
 # Result 1 : Series RLC circuit simulation with Voltage Source
-result_crn['V(C)'] <- 1 * simRLC$capacitor_voltage
-result_crn['I(L)'] <- 1 * simRLC$inductor_current
+# result_crn['V(C)'] <- 1 * simRLC$capacitor_voltage
+# result_crn['I(L)'] <- 1 * simRLC$inductor_current
 #result_crn['sum_dx1'] <- 0.01 * simRLC$sum_dx1
 #result_crn['sum_dx2'] <- 0.01 * simRLC$sum_dx2
 #result_crn['V(S)'] <- 1 * simRLC$source_voltage
@@ -249,38 +265,26 @@ result_crn['I(L)'] <- 1 * simRLC$inductor_current
 #cat("totalerror= ", total_error, "(", SSE_vc, "+", SSE_il, ')\n')
 
 
-Plot_behavior_circuit(
-  result_crn, circuit, gate_number, minimum, maximum,
-  #plot_species=c('V(S)', 'V(C)', 'I(L)'), # show results 1: 'V(S)', 'V(C)', 'I(L)', 'V(R)', 'V(L)'
-  #plot_species=c('v1p', 'rlcol_vc', 'rlcol_i'), # show model 'v1p', 'rlcol_vc', 'rlcol_i'
-  #  plot_species=c('v1p', 'rlcol_vc', 'rlcol_i', 'rlcl_mul1_p', 'V(C)', 'I(L)'), # show comparision
-  plot_species= c('v1p', 'rlcol_i', 'rlcol_vc'), # c('v1p','rlcol_i', 'rlcol_vc', 'rlcl_state1', 'rlcl_state2', 'rlcl_add3_2', 'rlcl_mul2', 'rlcl_mul3', 'rlcl_mul4',  'l_consume1', 'l_consume2', 'l_scaler1', 'l_scaler2', 'l_delay1', 'l_delay2'
-  plot_species_dotted=c('V(C)','I(L)' ), #
-# 
-  chart_title = sprintf("%s RLC Response DSD Vin=10[V] R=%s[Ω] L=%s[H] C=%s[F]\n", regime, R, L, C), # "RLC Step Response 
-  timing
-)
+# Plot_behavior_circuit(
+#   result_crn, circuit, gate_number, minimum, maximum,
+#   #plot_species=c('V(S)', 'V(C)', 'I(L)'), # show results 1: 'V(S)', 'V(C)', 'I(L)', 'V(R)', 'V(L)'
+#   #plot_species=c('v1p', 'rlcol_vc', 'rlcol_i'), # show model 'v1p', 'rlcol_vc', 'rlcol_i'
+#   #  plot_species=c('v1p', 'rlcol_vc', 'rlcol_i', 'rlcl_mul1_p', 'V(C)', 'I(L)'), # show comparision
+#   plot_species= c('v1p', 'rlcol_i', 'rlcol_vc'), # c('v1p','rlcol_i', 'rlcol_vc', 'rlcl_state1', 'rlcl_state2', 'rlcl_add3_2', 'rlcl_mul2', 'rlcl_mul3', 'rlcl_mul4',  'l_consume1', 'l_consume2', 'l_scaler1', 'l_scaler2', 'l_delay1', 'l_delay2'
+#   plot_species_dotted=c('V(C)','I(L)' ), #
+# # 
+#   chart_title = sprintf("%s RLC Response DSD Vin=10[V] R=%s[Ω] L=%s[H] C=%s[F]\n", regime, R, L, C), # "RLC Step Response 
+#   timing
+# )
 
-  metrics <- analyze_transient_metrics(
-    timing = timing,
-    v_in = behavior[["v_in"]],
-    vc_model = result[['rlcol_vcp']] - result[['rlcol_vcn']],
-    vc_sim = simRLC$capacitor_voltage,
-    t0 = 10,
-    t1 = 25,
-    resistance = R,
-    inductance = L,
-    capacitance = C
-  )
 
-    print(metrics)
-}
+# }
 
 
 plot_behavior(
   behavior, 
   title = sprintf("RLC Response DSD Vin=10[V]\n"), # "RLC Step Response 
   species = c('v_in', 'vc_O', 'vc_C', 'vc_U'),
-  species_dotted= c('V(C)_O', 'V(C)_C', 'V(C)_U'),
+  species_dotted= c('V(C)_O', 'V(C)_C', 'V(C)_U')
 )
 

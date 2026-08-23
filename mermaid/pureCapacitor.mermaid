@@ -1,0 +1,27 @@
+flowchart LR
+    classDef block fill:#ffffff,stroke:#000000,stroke-width:2px;
+    classDef signal fill:#ffffff,stroke:#000000,stroke-width:0px;
+
+    Vin["$$v_{\mathrm{in}}^{\pm}$$"]
+    DERIV["$$\displaystyle \frac{d}{dt}$$"]
+    DV["$$\displaystyle \frac{dv_{\mathrm{in}}^{\pm}}{dt}$$"]
+    MUL_C["$$\times C$$"]
+    I_OUT["$$i_C^{\pm}$$"]
+    
+    INT_Q["$$\displaystyle \int dt$$"]
+    Q_OUT["$$Q^{\pm}$$"]
+    MUL_1oC["$$\displaystyle \times \frac{1}{C}$$"]
+    VC_OUT["$$v_C^{\pm}$$"]
+
+    Vin -->|"$$v_{\mathrm{in}}^{\pm}$$"| DERIV
+    DERIV --> DV
+    DV --> MUL_C
+    MUL_C -->|"$$i_C^{\pm}$$"| I_OUT
+    
+    I_OUT -->|"$$i_C^{\pm}$$"| INT_Q
+    INT_Q -->|"$$Q^{\pm}$$"| Q_OUT
+    Q_OUT --> MUL_1oC
+    MUL_1oC -->|"$$v_C^{\pm}$$"| VC_OUT
+
+    class DERIV,MUL_C,INT_Q,MUL_1oC block;
+    class Vin,DV,I_OUT,Q_OUT,VC_OUT signal;

@@ -30,7 +30,6 @@ simulate_sRC_voltage_source <- function(timing, source_voltage, resistance, capa
   ))
 }
 
-# 1) Series RL with Voltage Source (you already had this)
 simulate_sRL_voltage_source <- function(timing, source_voltage, resistance, inductance) {
   n <- length(timing)
   current_output <- numeric(n)

@@ -1,0 +1,25 @@
+flowchart LR
+    classDef block fill:#ffffff,stroke:#000000,stroke-width:2px;
+    classDef signal fill:#ffffff,stroke:#000000,stroke-width:0px;
+
+    Vin["$$v_{\mathrm{in}}^{\pm}$$"]
+    MUL_1oL["$$\displaystyle \times \frac{1}{L}$$"]
+    DI_DT["$$\displaystyle \frac{di^{\pm}}{dt}$$"]
+    
+    INT_I["$$\displaystyle \int dt$$"]
+    I_OUT["$$i_L^{\pm}$$"]
+    
+    MUL_L["$$\times L$$"]
+    VL_OUT["$$v_L^{\pm}$$"]
+
+    Vin -->|"$$v_{\mathrm{in}}^{\pm}$$"| MUL_1oL
+    MUL_1oL -->|"$$\displaystyle \frac{di^{\pm}}{dt}$$"| DI_DT
+    
+    DI_DT --> INT_I
+    INT_I -->|"$$i_L^{\pm}$$"| I_OUT
+    
+    DI_DT --> MUL_L
+    MUL_L -->|"$$v_L^{\pm}$$"| VL_OUT
+
+    class MUL_1oL,INT_I,MUL_L block;
+    class Vin,DI_DT,I_OUT,VL_OUT signal;

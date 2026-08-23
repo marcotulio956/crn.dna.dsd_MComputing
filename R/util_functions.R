@@ -48,7 +48,7 @@ React_4domain <- function(circuit, forced_concentrations = NULL, engine = 'desol
 # )
 # fuzzy_input_func <- approxfun(x = fuzzy_pulse_data$time, y = fuzzy_pulse_data$value, rule = 2)
 
-Translate_4domain <- function(circuit, forced_concentrations = NULL, engine = 'desolve') {
+Translate_4domain <- function(circuit) {
   return(translate_4domain_crn(
     species   = circuit$species,
     ci        = circuit$ci,

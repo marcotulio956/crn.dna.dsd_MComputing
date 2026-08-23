@@ -389,87 +389,89 @@ Make_Mux2_balanced <- function(name, nameInput1, nameInput2, nameControl1, nameC
   return(mux2_gate)
 }
 
-Make_Circuit_Capacitor <- function(name, species_input, species_output, ic, rate) {
+
+Make_Circuit_Inductor_Iin <- function(name, species_input, species_output, ic, rate) {
   gates <- list()
 
-  # I_C (RC series) : i_c = C * dv_l/dt 
+  l_vep <- jn(name, '_l_vep')
+  l_ven <- jn(name, '_l_ven')
 
-  l_dvp <- jn(name, 'l_dvp')
-  l_dvn <- jn(name, 'l_dvn')
-  
-  # dvp, dvn = dv/dt
-  g_v_derivate <- Make_Derivative(jn(name, 'g_dv_in'),
-    species_input$voltage_positive, species_input$voltage_negative,
-    l_dvp, l_dvn,
-    ic$voltage_positive, ic$voltage_negative,
+  # Derivate the current input
+  g_di_in <- Make_Derivative(
+    jn(name, 'g_di_in'),
+    species_input$current_positive, species_input$current_negative,
+    l_vep, l_ven,
+    0, 0,
     rate
   )
-  gates[[length(gates)+1]] <- g_v_derivate 
-  
-  # ip = C dvp
-  g_ip <- Make_Mul2In_Wang(jn(name, 'g_ip'),
-    species_input$capacitance, l_dvp, species_output$current_positive,
-    ic$capacitance, 0, 
+  gates[[length(gates)+1]] <- g_di_in
+
+  g_pir <- Make_Mul2In_Wang(
+    jn(name, 'g_pir'),
+    jn(name, 'cte1'),  l_vep, 
+    species_output$current_positive,
+    ic$inductance, 0,
     rate
   )
-  gates[[length(gates)+1]] <- g_ip
-      # in = C dvn
-      g_in <- Make_Mul2In_Wang(jn(name, 'g_in'),
-        species_input$capacitance, l_dvn, species_output$current_negative,
-        ic$capacitance, 0, 
+  gates[[length(gates)+1]] <- g_pir
+
+      g_nir <- Make_Mul2In_Wang(
+        jn(name, 'g_nir'),
+        jn(name,'cte2'),  l_ven, 
+        species_output$current_negative,
+        ic$inductance, 0,
         rate
       )
-      gates[[length(gates)+1]] <- g_in
+      gates[[length(gates)+1]] <- g_nir
 
-  # Q = \int i dt
-  l_pcharge <- jn(name, 'l_pcharge')
-  l_ncharge <- jn(name, 'l_ncharge')
-  g_charge_integrator <- Make_Integrator_OishiYordanov(
-    jn(name, '_g_dv_int'), 
+  l_flux_p <- jn(name, '_l_flux_p')
+  l_flux_n <- jn(name, '_l_flux_n')
+
+  g_ve_integrator <- Make_Integrator_OishiYordanov(
+    jn(name, '_g_i_int'), 
     species_output$current_positive, species_output$current_negative,
-    l_pcharge, l_ncharge,
-    ic$current_positive, ic$current_negative,
+    l_flux_p, l_flux_n,
+    0, 0,
     rate
   )
-  gates[[length(gates)+1]] <- g_charge_integrator
+  gates[[length(gates)+1]] <- g_ve_integrator
 
-      # vp = Qp * 1/C
-      l_vp = jn(name, 'l_vp')
-      g_vp <- Make_Mul2In_Wang(jn(name, 'g_vp'),
-        jn(name,'_1oC'), l_pcharge, species_output$voltage_positive,
-        1/ic$capacitance, 0,  # 1/(ic$capacitance* * resistance)
+  # Computer voltage in the inductor
+  g_pvl <- Make_Mul2In_Wang(
+    jn(name, 'g_pvl'),
+    jn(name,'cte3'), l_flux_p,
+    species_output$voltage_positive,
+    1/ic$inductance, 0,
+    rate
+  )
+  gates[[length(gates)+1]] <- g_pvl    
+      g_nvl <- Make_Mul2In_Wang(
+        jn(name, 'g_nvl'),
+        jn(name, 'cte4'),  l_flux_n,
+        species_output$voltage_negative,
+        1/ic$inductance, 0,
         rate
       )
-      gates[[length(gates)+1]] <- g_vp
+      gates[[length(gates)+1]] <- g_nvl
 
-          # # vp_out = vp + vp0
-          # g_vp_out <- Make_Adder_apBeC(jn(name, '_g_vp_out'),
-          #   l_vp, jn(name, '_vp0'), species_output$voltage_positive,
-          #   0, ic$initial_voltage_positive,
-          #   1e3, rate
-          # )
-          # gates[[length(gates)+1]] <- g_vp_out
+  # Compute Equivalent Voltage  at the Inductor Terminal from Current Source 
 
-      # vn = Qn * 1/C
-      l_vn = jn(name, 'l_vp')
-      g_vn <- Make_Mul2In_Wang(jn(name, 'g_vn'),
-        jn(name,'_1oC'), l_ncharge, species_output$voltage_negative,
-        1/ic$capacitance, 0,  # 1/(ic$capacitance * resistance)
-        rate
-      )
-      gates[[length(gates)+1]] <- g_vn
+  # V_L (RL series) : v_l = L * di/dt, i = 1/L \int v_l dt or i = V_L / R 
 
-          # # vn_out = vn + vn0
-          # g_vn_out <- Make_Adder_apBeC(jn(name, '_g_vn_out'),
-          #   l_vn, jn(name, '_vn0'), species_output$voltage_negative,
-          #   0, ic$iniital_voltage_negative,
-          #   1e3, rate
-          # )
-          # gates[[length(gates)+1]] <- g_vn_out
+  # V_L = V_E (RL parallel) : v_e = R * i_R (by resistor), v_e = L * i_L/dt (by inductor), i_l = 1/L \int V_E dt
 
-  return (gates)
+  # Compute Flux in Inductor
+  # F = \int V_E dt
+
+  # Exract Current through Inductor from Flux
+  # i_l = 1/L * F 
+  
+  # Compute voltage: v = R * di/dt
+  
+  # Recover the current from the flux: i = (1/L)*F
+
+  return(gates)
 }
-
 
 Make_Capacitor_Component <- function(id, capacitance=1, resistance=1) {
   c1 <- c()
@@ -581,10 +583,7 @@ Make_Circuit_RC <- function(name, species_input, species_output, ic, rate) {
   vr_n <- jn(name, '_vr_n')
   dummy_0 <- jn(name, '_dummy_0') # Unused input for 3-input adder
 
-  # ------------------------------------------------------------
   # 1. Subtraction: V_R = V_in - V_C 
-  # Dual rail subtraction: V_Rp = V_inp + V_Cn; V_Rn = V_inn + V_Cp
-  # ------------------------------------------------------------
   g_add_vr_p <- Make_Add3In(
     jn(name, '_add_vr_p'),
     species_input$voltage_positive, species_output$voltage_negative, dummy_0,
@@ -601,9 +600,7 @@ Make_Circuit_RC <- function(name, species_input, species_output, ic, rate) {
   )
   gates[[length(gates) + 1]] <- g_add_vr_n
 
-  # ------------------------------------------------------------
   # 2. Current: I = V_R * (1/R)
-  # ------------------------------------------------------------
   g_mul_ip <- Make_Mul2In_Wang(
     jn(name, '_mul_ip'),
     vr_p, jn(name, '_1oR'), species_output$current_positive,
@@ -618,9 +615,7 @@ Make_Circuit_RC <- function(name, species_input, species_output, ic, rate) {
   )
   gates[[length(gates) + 1]] <- g_mul_in
 
-  # ------------------------------------------------------------
   # 3. Capacitor Derivative: dV_C/dt = I * (1/C)
-  # ------------------------------------------------------------
   dvc_p <- jn(name, '_dvc_p')
   dvc_n <- jn(name, '_dvc_n')
 
@@ -638,9 +633,7 @@ Make_Circuit_RC <- function(name, species_input, species_output, ic, rate) {
   )
   gates[[length(gates) + 1]] <- g_mul_dvcn
 
-  # ------------------------------------------------------------
   # 4. Capacitor Voltage Integration: V_C = Integral(dV_C/dt)
-  # ------------------------------------------------------------
   g_int_vc <- Make_Integrator_OishiYordanov(
     jn(name, '_int_vc'),
     dvc_p, dvc_n,
@@ -652,134 +645,6 @@ Make_Circuit_RC <- function(name, species_input, species_output, ic, rate) {
   return(gates)
 }
 
-Make_Capacitor_mermaid <- function(name,
-                           species_input,
-                           species_output,
-                           ic,
-                           rate) {
-
-  gates <- list()
-
-  # ============================================================
-  # Capacitor:
-  #
-  #   v_in -> d/dt -> C -> integral -> 1/C -> v_C
-  #
-  # i = C dv/dt
-  # Q = integral(i dt)
-  # v = Q/C
-  # ============================================================
-
-  # ------------------------------------------------------------
-  # 1. Derivative
-  #
-  # dv_in+ / dt -> dv_positive
-  # dv_in- / dt -> dv_negative
-  # ------------------------------------------------------------
-
-  dv_positive <- jn(name, '_dv_positive')
-  dv_negative <- jn(name, '_dv_negative')
-
-  g_dv <- Make_Derivative(
-    jn(name, '_derivative'),
-    species_input$voltage_positive,
-    species_input$voltage_negative,
-    dv_positive,
-    dv_negative,
-    ic$voltage_positive, ic$voltage_negative,
-    rate
-  )
-
-  gates[[length(gates) + 1]] <- g_dv
-
-
-  # ------------------------------------------------------------
-  # 2. Multiply by C
-  #
-  # i+ = C * dv+ / dt
-  # i- = C * dv- / dt
-  # ------------------------------------------------------------
-
-  g_ip <- Make_Mul2In_Wang(
-    jn(name, '_mul2_ip'),
-    dv_positive,
-    jn(name, '_C'),
-    species_output$current_positive,
-    0, ic$capacitance,
-    rate
-  )
-
-  gates[[length(gates) + 1]] <- g_ip
-
-
-  g_in <- Make_Mul2In_Wang(
-    jn(name, '_mul2_in'),
-    dv_negative,
-    jn(name, '_C'),
-    species_output$current_negative,
-    0, ic$capacitance,
-    rate
-  )
-
-  gates[[length(gates) + 1]] <- g_in
-
-
-  # ------------------------------------------------------------
-  # 3. Integrate current
-  #
-  # Q+ = integral(i+ dt)
-  # Q- = integral(i- dt)
-  # ------------------------------------------------------------
-
-  charge_positive <- jn(name, '_charge_positive')
-  charge_negative <- jn(name, '_charge_negative')
-
-  g_charge_integrator <- Make_Integrator_OishiYordanov(
-    jn(name, '_charge_integrator'),
-    species_output$current_positive,
-    species_output$current_negative,
-    charge_positive,
-    charge_negative,
-    ic$current_positive, ic$current_negative,
-    rate
-  )
-
-  gates[[length(gates) + 1]] <- g_charge_integrator
-
-
-  # ------------------------------------------------------------
-  # 4. Multiply by 1/C
-  #
-  # vC+ = Q+ / C
-  # vC- = Q- / C
-  # ------------------------------------------------------------
-
-  g_vp <- Make_Mul2In_Wang(
-    jn(name, '_g_vp'),
-    charge_positive,
-    jn(name, '_1oC'),
-    species_output$voltage_positive,
-    0, 1 / ic$capacitance,
-    rate
-  )
-
-  gates[[length(gates) + 1]] <- g_vp
-
-
-  g_vn <- Make_Mul2In_Wang(
-    jn(name, '_g_vn'),
-    charge_negative,
-    jn(name, '_1oC'),
-    species_output$voltage_negative,
-    0, 1 / ic$capacitance,
-    rate
-  )
-
-  gates[[length(gates) + 1]] <- g_vn
-
-
-  return(gates)
-}
 
 Make_Circuit_Pure_Capacitor <- function(name, species_input, species_output, ic, rate) {
   gates <- list()
@@ -1118,4 +983,236 @@ Make_Circuit_RL2 <- function(name, species_input, species_output, ic, rate) {
   gates[[length(gates) + 1]] <- g_int_i
 
   return(gates)
+}
+
+#' @title Make_Circuit_Resistive_Inductor
+#' @description Assembles the analog CRN gates to simulate a series RL inductor with internal resistance.
+Make_Circuit_Resistive_Inductor <- function(name, species_input, species_output, ic, rate) {
+  gates <- list()
+
+  vr_p <- jn(name, '_vr_p')
+  vr_n <- jn(name, '_vr_n')
+  dummy_0 <- jn(name, '_dummy_0')
+
+  # 1. Resistor Voltage Drop: V_R = i * R
+  g_mul_vrp <- Make_Mul2In_Wang(
+    jn(name, '_mul_vrp'),
+    species_output$current_positive, jn(name, '_R'), vr_p,
+    0, ic$resistance, rate
+  )
+  gates[[length(gates) + 1]] <- g_mul_vrp
+
+  g_mul_vrn <- Make_Mul2In_Wang(
+    jn(name, '_mul_vrn'),
+    species_output$current_negative, jn(name, '_R'), vr_n,
+    0, ic$resistance, rate
+  )
+  gates[[length(gates) + 1]] <- g_mul_vrn
+
+  # 2. Inductor Voltage Subtraction: V_L = V_in - V_R (Dual Rail)
+  g_add_vlp <- Make_Add3In(
+    jn(name, '_add_vlp'),
+    species_input$voltage_positive, vr_n, dummy_0,
+    species_output$voltage_positive, 
+    0, 0, 0, rate
+  )
+  gates[[length(gates) + 1]] <- g_add_vlp
+
+  g_add_vln <- Make_Add3In(
+    jn(name, '_add_vln'),
+    species_input$voltage_negative, vr_p, dummy_0,
+    species_output$voltage_negative, 
+    0, 0, 0, rate
+  )
+  gates[[length(gates) + 1]] <- g_add_vln
+
+  # 3. Inductor Derivative: di/dt = V_L * (1/L)
+  di_p <- jn(name, '_di_p')
+  di_n <- jn(name, '_di_n')
+
+  g_mul_dip <- Make_Mul2In_Wang(
+    jn(name, '_mul_dip'),
+    species_output$voltage_positive, jn(name, '_1oL'), di_p,
+    0, 1 / ic$inductance, rate
+  )
+  gates[[length(gates) + 1]] <- g_mul_dip
+
+  g_mul_din <- Make_Mul2In_Wang(
+    jn(name, '_mul_din'),
+    species_output$voltage_negative, jn(name, '_1oL'), di_n,
+    0, 1 / ic$inductance, rate
+  )
+  gates[[length(gates) + 1]] <- g_mul_din
+
+  # 4. Current Integration: i = Integral(di/dt)
+  g_int_i <- Make_Integrator_OishiYordanov(
+    jn(name, '_int_i'),
+    di_p, di_n,
+    species_output$current_positive, species_output$current_negative,
+    0, 0, rate
+  )
+  gates[[length(gates) + 1]] <- g_int_i
+
+  return(gates)
+}
+
+#' @title Make_Circuit_Pure_Capacitor
+#' @description Implements i = C * (dv/dt) using a differentiator gate
+Make_Circuit_Pure_Capacitor_Derivative <- function(name, species_input, species_output, ic, rate) {
+  gates <- list()
+  dv_p <- jn(name, '_dv_p')
+  dv_n <- jn(name, '_dv_n')
+
+  # 1. Differentiator: dv/dt
+  g_diff <- Make_Derivative(
+    jn(name, '_diff'),
+    species_input$voltage_positive, species_input$voltage_negative,
+    dv_p, dv_n, 
+    0, 0, rate
+  )
+  gates[[length(gates) + 1]] <- g_diff
+
+  # 2. Multiplier: i_C = C * dv/dt
+  g_mul_p <- Make_Mul2In_Wang(
+    jn(name, '_mul_p'),
+    dv_p, jn(name, '_C'), species_output$current_positive,
+    0, ic$capacitance, rate
+  )
+  gates[[length(gates) + 1]] <- g_mul_p
+
+  g_mul_n <- Make_Mul2In_Wang(
+    jn(name, '_mul_n'),
+    dv_n, jn(name, '_C'), species_output$current_negative,
+    0, ic$capacitance, rate
+  )
+  gates[[length(gates) + 1]] <- g_mul_n
+
+  return(gates)
+}
+
+#' @title Make_Circuit_Pure_Inductor
+#' @description Implements i = (1/L) * integral(v dt) using an integrator gate
+Make_Circuit_Pure_Inductor_Integrator <- function(name, species_input, species_output, ic, rate) {
+  gates <- list()
+  flux_p <- jn(name, '_flux_p')
+  flux_n <- jn(name, '_flux_n')
+
+  # 1. Integrator: Flux (lambda) = Integral(v) dt
+  g_int <- Make_Integrator_OishiYordanov(
+    jn(name, '_int'),
+    species_input$voltage_positive, species_input$voltage_negative,
+    flux_p, flux_n, 
+    0, 0, rate
+  )
+  gates[[length(gates) + 1]] <- g_int
+
+  # 2. Multiplier: i_L = Flux * (1/L)
+  g_mul_p <- Make_Mul2In_Wang(
+    jn(name, '_mul_p'),
+    flux_p, jn(name, '_1oL'), species_output$current_positive,
+    0, 1 / ic$inductance, rate
+  )
+  gates[[length(gates) + 1]] <- g_mul_p
+
+  g_mul_n <- Make_Mul2In_Wang(
+    jn(name, '_mul_n'),
+    flux_n, jn(name, '_1oL'), species_output$current_negative,
+    0, 1 / ic$inductance, rate
+  )
+  gates[[length(gates) + 1]] <- g_mul_n
+
+  return(gates)
+}
+
+Make_Circuit_RLC_Composited <- function(timing, regime) {
+
+    behaviours <- list(
+    'O' = c(R = 4, L = 1, C = 1),# 2
+    'C' = c(R = 2, L = 1, C = 1),# 1 
+    'U' = c(R = 1, L = 1, C = 1) # 0.5
+  )
+  # Load parameters for the requested regime
+  params <- behaviours[[regime]]
+  R <- params["R"]
+  L <- params["L"]
+  C <- params["C"]
+
+  # Base rate for the components
+  rate <- 1e-3
+  
+  circuit <- make_circuit(timing)
+  
+  # 1. Input Signal Generation (Digital/Analog Interface)
+  # g_dalchau <- Make_Oscillator_Dalchau('sin', 'x', 'v1p', 'z', 1e-3, 1e-3, 15, 4e-1)
+  # c_comparator <- Make_Mux2_balanced(
+  #   'mux1', 'x', 'v1p', 'low', 'high', 'comp_out',
+  #   0, 0, 3, 8, 0, 7.0e-1
+  # )
+  # circuit <- circuit_add_gate(circuit, g_dalchau)
+  # circuit <- circuit_add_gate(circuit, c_comparator)
+  
+  # 2. Define Shared Species for the Series RLC Connection
+  # V_RL = V_in - V_C
+  v_rl_p <- jn('comp_', regime, '_vrl_p')
+  v_rl_n <- jn('comp_', regime, '_vrl_n')
+  
+  i_series_p <- jn('comp_', regime, '_i_p')
+  i_series_n <- jn('comp_', regime, '_i_n')
+  
+  vc_p <- jn('comp_', regime, '_vc_p')
+  vc_n <- jn('comp_', regime, '_vc_n')
+  
+  dummy_0 <- 'dummy_0'
+
+  # 3. Voltage Subtraction (Feedback Loop): V_RL = V_in - V_C
+  g_add_vrl_p <- Make_Add3In(
+    jn('add_vrl_p_', regime),
+    'v1p', vc_n, dummy_0, # V_inp + V_Cn (dual rail subtraction)
+    v_rl_p,
+    0, 0, 0, rate
+  )
+  g_add_vrl_n <- Make_Add3In(
+    jn('add_vrl_n_', regime),
+    'v1n', vc_p, dummy_0, # V_inn + V_Cp
+    v_rl_n,
+    0, 0, 0, rate
+  )
+  circuit <- circuit_add_compile_gates(circuit, list(g_add_vrl_p, g_add_vrl_n))
+
+  # 4. Instantiate the RL Block (Resistor + Inductor)
+  rl_ic <- list(resistance = R, inductance = L)
+  rl_input <- list(voltage_positive = v_rl_p, voltage_negative = v_rl_n)
+  rl_output <- list(current_positive = i_series_p, current_negative = i_series_n, 
+                    voltage_positive = 'vl_p_dummy', voltage_negative = 'vl_n_dummy')
+  
+  rl_gates <- Make_Circuit_RL2(jn('RL_', regime), rl_input, rl_output, rl_ic, rate)
+  circuit <- circuit_add_compile_gates(circuit, rl_gates)
+
+  # 5. Instantiate the C Block (Capacitor)
+  # Since the RC model expects a voltage to calculate its own current, we bypass 
+  # the RC's internal V->I conversion and directly integrate the series current.
+  dvc_p <- jn('C_', regime, '_dvc_p')
+  dvc_n <- jn('C_', regime, '_dvc_n')
+  
+  g_mul_dvcp <- Make_Mul2In_Wang(
+    jn('C_mul_dvcp_', regime),
+    i_series_p, jn('C_1oC_', regime), dvc_p,
+    0, 1 / C, rate
+  )
+  g_mul_dvcn <- Make_Mul2In_Wang(
+    jn('C_mul_dvcn_', regime),
+    i_series_n, jn('C_1oC_', regime), dvc_n,
+    0, 1 / C, rate
+  )
+  
+  g_int_vc <- Make_Integrator_OishiYordanov(
+    jn('C_int_vc_', regime),
+    dvc_p, dvc_n,
+    vc_p, vc_n,
+    0, 0, rate
+  )
+  
+  circuit <- circuit_add_compile_gates(circuit, list(g_mul_dvcp, g_mul_dvcn, g_int_vc))
+
+  return(circuit)
 }
