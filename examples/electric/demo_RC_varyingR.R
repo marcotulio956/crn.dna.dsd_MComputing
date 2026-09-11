@@ -41,7 +41,7 @@ Make_RC <- function(timing, resistance, id) {
   cap <- Make_Capacitor_Component(
     id,
     capacitance,
-    resistance
+    resistance*100
   )
 
   # Input voltage connected to RC input
@@ -146,6 +146,8 @@ for (i in seq_along(resistances)) {
 
   v_positive <- paste0(component_name, "ol_vp")
   v_negative <- paste0(component_name, "ol_vn")
+  i_positive <- paste0(component_name, "ol_ip")
+  i_negative <- paste0(component_name, "ol_in")
 
 
   # ----------------------------------------------------------
@@ -155,6 +157,7 @@ for (i in seq_along(resistances)) {
   vc_crn <- result[[v_positive]] -
              result[[v_negative]]
 
+  i_crn <- result[[i_positive]] - result [[i_negative]]
 
   # ----------------------------------------------------------
   # Analytical RC simulation
@@ -185,6 +188,11 @@ for (i in seq_along(resistances)) {
     "vc_R",
     resistance
   )]] <- vc_crn
+  
+  behavior[[jn(
+    "i_R",
+    resistance
+  )]] <- i_crn
 
   behavior[[jn(
     "V(C)_R",
@@ -222,18 +230,31 @@ for (i in seq_along(resistances)) {
 # Plot capacitor voltage
 # ============================================================
 
+
 crn_species <- sapply(
-  resistances,
-  function(R) jn("vc_R", R)
+  resistances,  function(R) jn("vc_R", R)
 )
+
+append(crn_species,  sapply(
+    resistances,  function(R) jn("i_R", R)
+  ))
+  
+
 
 reference_species <- sapply(
   resistances,
   function(R) jn("V(C)_R", R)
 )
 
+append(reference_species, sapply(
+  resistances,
+  function(R) jn("I(C)_R", R)
+))
 
-plot_behavior(
+
+
+
+Plot_behavior(
   behavior,
   title = sprintf(
     "RC Response DSD Vin=10[V], C=10[mF]",

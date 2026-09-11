@@ -29,7 +29,7 @@ noisy_nutrient_func <- approxfun(x = ou_data$time, y = ou_data$value, rule = 2)
 circuit <- c()
 circuit$ki <- circuit$ki * 10 
 
-result_crn <- react2(
+result_crn <- react4(
   species   = circuit$species,
   ci        = circuit$ci,
   reactions = circuit$reactions,

@@ -1,10 +1,4 @@
-# Load the libraries
-# DO NOT USE library(DNAr)
-# DO NOT USE library(DNArLogic)
-# DO NOT USE library(DNArAnalog)
-
 rm(list = ls())
-# setwd("~/MEGAsync/_CEFET/tcc/dnar")
 
 source('R/4domain_reactor.R')
 source('R/analysis.R')
@@ -22,31 +16,31 @@ source('R/NEURON_SIM.R')
 
 jn <- function(...) { paste(..., sep = '') }
 
-tend = 800
+tend = 600
 timing <-  seq(0, tend, length.out = tend + 1)
 
-volume = 5
+volume =  10
 
 crn1 <- create_ml_crn_varyingRates(rate=1,Iapp=60, Mtot=40, Wtot=40, use_3d_m = TRUE, volume = volume)
 crn1$t <- timing
+crn1$params$Iapp <- 110
 
-# Ip_ode_ml_input <- function(timing) {crn1$params$Iapp}
-# mls1 <- state_class1
-# mlp1 <- pars_class1
-# mlp1$input_func <- Ip_ode_ml_input
-# library(deSolve)
-# out1 <- ode(y = mls1, times = timing, func = morris_lecar, parms = mlp1)
-# 
-# result_ode <- as.data.frame(out1)
-# result_ode['Vref_ode'] <- result_ode['v']
+Ip_ode_ml_input <- function(timing) {crn1$params$Iapp}
+mls1 <- state_class1
+mlp1 <- pars_class1
+mlp1$input_func <- Ip_ode_ml_input
+library(deSolve)
+out1 <- ode(y = mls1, times = timing, func = morris_lecar, parms = mlp1)
+result_ode <- as.data.frame(out1)
+result_ode['Vref'] <- result_ode['v']
 
 result_sto <- React_stochastic(crn1, volume = volume)
 result_sto['Vsto'] = (result_sto['Vp'] - result_sto['Vm'])
 
-crn1 <- create_ml_crn_varyingRates(rate=10,Iapp=140, Mtot=40, Wtot=40, use_3d_m = FALSE, volume = volume)
+crn1 <- create_ml_crn_varyingRates(rate=10,Iapp=crn1$params$Iapp, Mtot=40, Wtot=40, use_3d_m = FALSE, volume = volume)
 crn1$t <- timing
 result_crn <- React_circuit(crn1)
-result_crn['Vdet'] = (result_crn['Vp'] - result_crn['Vm'])
+result_crn['Vcrn'] = (result_crn['Vp'] - result_crn['Vm'])
 result_crn['M'] <- result_crn['XM'] / (result_crn['XM'] + result_crn['XMc'])
 result_crn['W'] <- result_crn['XW'] / (result_crn['XW'] + result_crn['XWc'])
 
@@ -70,14 +64,13 @@ result_crn['W'] <- result_crn['XW'] / (result_crn['XW'] + result_crn['XWc'])
 # result_sto_ref['Vref_sto'] <- result_sto_ref['V']
 
 # df_list <- list(result_ode, result_crn, result_sto, result_sto_ref)
-df_list <- list(result_sto, result_crn)
+df_list <- list(result_sto, result_crn, result_ode)
 merged_df <- Reduce(function(x, y) merge(x, y, by = "time", all = TRUE), df_list)
                     
 # plot_behavior(merged_df, species = c('Vcrn', 'Vsto', 'Vref_ode', 'Vref_sto'))
-plot_behavior(merged_df, species = c('Vsto', 'Vdet'))
-# plot_behavior(joined_df, species = c('M','W'),
-              # species_dotted = c('w'))
-              
+
+Plot_behavior(merged_df, species = c('Vsto', 'Vcrn', 'Vref'),normalize=TRUE)
+
 
 # result_sto <- React_stochastic(circuit)
 # result_sto['V'] = result_sto['Vp'] - result_sto['Vm']

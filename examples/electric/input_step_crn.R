@@ -73,7 +73,7 @@ cat("=== Otimização Iniciada ===\n")
 
 init_p <- c(
   1e-3, 1e-3, 15, 4e-1,   # p1
-  0, 0, 3.5, 8.5, 0, 6.75e-1                  # p2
+  00, 0, 3.5, 8.5, 0, 6.75e-1                  # p2
 )
 
 #cat("Guess:", init_p)

@@ -13,175 +13,6 @@ source('R/ANALOG_GATE_LIB.R')
 source('R/ELECTRO_LIB.R')
 source('R/ELECTRO_SIM.R')
 source('R/forced_concentrations.R')
-# ==============================================================================
-# COMPOSITE ANALOG CRN CIRCUITS (STATE-SPACE FORMULATION)
-# Append these to your R/ELECTRO_LIB.R file
-# ==============================================================================
-
-#' @title Make_Circuit_Series_RC
-#' @description Implements a Series RC circuit using integrators.
-#' Topology: V_R = V_in - V_C; i = V_R / R; dVc/dt = i / C; V_C = Integral(dVc/dt)
-Make_Circuit_Series_RC <- function(name, species_input, species_output, ic, rate) {
-  gates <- list()
-  dummy_0 <- jn(name, '_dummy_0')
-  
-  vr_p <- jn(name, '_vr_p')
-  vr_n <- jn(name, '_vr_n')
-  
-  # 1. Resistor Voltage Subtraction: V_R = V_in - V_C
-  # Dual-rail subtraction: V_Rp = V_inp + V_Cn; V_Rn = V_inn + V_Cp
-  gates[[length(gates) + 1]] <- Make_Add3In(
-    jn(name, '_sub_vrp'), species_input$voltage_positive, species_output$voltage_negative, dummy_0, vr_p, 0, 0, 0, rate
-  )
-  gates[[length(gates) + 1]] <- Make_Add3In(
-    jn(name, '_sub_vrn'), species_input$voltage_negative, species_output$voltage_positive, dummy_0, vr_n, 0, 0, 0, rate
-  )
-  
-  # 2. Current Extraction: i = V_R * (1/R)
-  gates[[length(gates) + 1]] <- Make_Mul2In_Wang(
-    jn(name, '_mul_ip'), vr_p, jn(name, '_1oR'), species_output$current_positive, 0, 1 / ic$resistance, rate
-  )
-  gates[[length(gates) + 1]] <- Make_Mul2In_Wang(
-    jn(name, '_mul_in'), vr_n, jn(name, '_1oR'), species_output$current_negative, 0, 1 / ic$resistance, rate
-  )
-  
-  # 3. Capacitor Derivative: dVc/dt = i * (1/C)
-  dvc_p <- jn(name, '_dvc_p')
-  dvc_n <- jn(name, '_dvc_n')
-  gates[[length(gates) + 1]] <- Make_Mul2In_Wang(
-    jn(name, '_mul_dvcp'), species_output$current_positive, jn(name, '_1oC'), dvc_p, 0, 1 / ic$capacitance, rate
-  )
-  gates[[length(gates) + 1]] <- Make_Mul2In_Wang(
-    jn(name, '_mul_dvcn'), species_output$current_negative, jn(name, '_1oC'), dvc_n, 0, 1 / ic$capacitance, rate
-  )
-  
-  # 4. Capacitor Voltage Integration: V_C = Integral(dVc/dt)
-  gates[[length(gates) + 1]] <- Make_Integrator_OishiYordanov(
-    jn(name, '_int_vc'), dvc_p, dvc_n, species_output$voltage_positive, species_output$voltage_negative, 0, 0, rate
-  )
-  
-  return(gates)
-}
-
-
-#' @title Make_Circuit_Series_RL
-#' @description Implements a Series RL circuit using integrators.
-#' Topology: V_R = i * R; V_L = V_in - V_R; di/dt = V_L / L; i = Integral(di/dt)
-Make_Circuit_Series_RL <- function(name, species_input, species_output, ic, rate) {
-  gates <- list()
-  dummy_0 <- jn(name, '_dummy_0')
-  
-  vr_p <- jn(name, '_vr_p')
-  vr_n <- jn(name, '_vr_n')
-  
-  # 1. Resistor Voltage: V_R = i * R
-  gates[[length(gates) + 1]] <- Make_Mul2In_Wang(
-    jn(name, '_mul_vrp'), species_output$current_positive, jn(name, '_R'), vr_p, 0, ic$resistance, rate
-  )
-  gates[[length(gates) + 1]] <- Make_Mul2In_Wang(
-    jn(name, '_mul_vrn'), species_output$current_negative, jn(name, '_R'), vr_n, 0, ic$resistance, rate
-  )
-  
-  # 2. Inductor Voltage Subtraction: V_L = V_in - V_R
-  gates[[length(gates) + 1]] <- Make_Add3In(
-    jn(name, '_add_vlp'), species_input$voltage_positive, vr_n, dummy_0, species_output$voltage_positive, 0, 0, 0, rate
-  )
-  gates[[length(gates) + 1]] <- Make_Add3In(
-    jn(name, '_add_vln'), species_input$voltage_negative, vr_p, dummy_0, species_output$voltage_negative, 0, 0, 0, rate
-  )
-  
-  # 3. Inductor Derivative: di/dt = V_L * (1/L)
-  di_p <- jn(name, '_di_p')
-  di_n <- jn(name, '_di_n')
-  gates[[length(gates) + 1]] <- Make_Mul2In_Wang(
-    jn(name, '_mul_dip'), species_output$voltage_positive, jn(name, '_1oL'), di_p, 0, 1 / ic$inductance, rate
-  )
-  gates[[length(gates) + 1]] <- Make_Mul2In_Wang(
-    jn(name, '_mul_din'), species_output$voltage_negative, jn(name, '_1oL'), di_n, 0, 1 / ic$inductance, rate
-  )
-  
-  # 4. Inductor Current Integration: i = Integral(di/dt)
-  gates[[length(gates) + 1]] <- Make_Integrator_OishiYordanov(
-    jn(name, '_int_i'), di_p, di_n, species_output$current_positive, species_output$current_negative, 0, 0, rate
-  )
-  
-  return(gates)
-}
-
-
-#' @title Make_Circuit_Series_RLC
-#' @description Implements a Series RLC circuit using multi-variable state-space integration.
-#' States: Inductor Current (i) and Capacitor Voltage (V_C)
-Make_Circuit_Series_RLC <- function(name, species_input, species_output, ic, rate) {
-  gates <- list()
-  dummy_0 <- jn(name, '_dummy_0')
-  
-  vr_p <- jn(name, '_vr_p')
-  vr_n <- jn(name, '_vr_n')
-  
-  # 1. Resistor Voltage: V_R = i * R
-  gates[[length(gates) + 1]] <- Make_Mul2In_Wang(
-    jn(name, '_mul_vrp'), species_output$current_positive, jn(name, '_R'), vr_p, 0, ic$resistance, rate
-  )
-  gates[[length(gates) + 1]] <- Make_Mul2In_Wang(
-    jn(name, '_mul_vrn'), species_output$current_negative, jn(name, '_R'), vr_n, 0, ic$resistance, rate
-  )
-  
-  # 2. Intermediate Subtraction: (V_in - V_C)
-  # In this block, species_output$voltage is mapped to Capacitor Voltage (V_C)
-  vin_m_vc_p <- jn(name, '_vin_m_vc_p')
-  vin_m_vc_n <- jn(name, '_vin_m_vc_n')
-  
-  gates[[length(gates) + 1]] <- Make_Add3In(
-    jn(name, '_sub1_p'), species_input$voltage_positive, species_output$voltage_negative, dummy_0, vin_m_vc_p, 0, 0, 0, rate
-  )
-  gates[[length(gates) + 1]] <- Make_Add3In(
-    jn(name, '_sub1_n'), species_input$voltage_negative, species_output$voltage_positive, dummy_0, vin_m_vc_n, 0, 0, 0, rate
-  )
-  
-  # 3. Inductor Voltage: V_L = (V_in - V_C) - V_R
-  vl_p <- jn(name, '_vl_p')
-  vl_n <- jn(name, '_vl_n')
-  
-  gates[[length(gates) + 1]] <- Make_Add3In(
-    jn(name, '_sub2_p'), vin_m_vc_p, vr_n, dummy_0, vl_p, 0, 0, 0, rate
-  )
-  gates[[length(gates) + 1]] <- Make_Add3In(
-    jn(name, '_sub2_n'), vin_m_vc_n, vr_p, dummy_0, vl_n, 0, 0, 0, rate
-  )
-  
-  # 4. Inductor Derivative: di/dt = V_L * (1/L)
-  di_p <- jn(name, '_di_p')
-  di_n <- jn(name, '_di_n')
-  gates[[length(gates) + 1]] <- Make_Mul2In_Wang(
-    jn(name, '_mul_dip'), vl_p, jn(name, '_1oL'), di_p, 0, 1 / ic$inductance, rate
-  )
-  gates[[length(gates) + 1]] <- Make_Mul2In_Wang(
-    jn(name, '_mul_din'), vl_n, jn(name, '_1oL'), di_n, 0, 1 / ic$inductance, rate
-  )
-  
-  # 5. Inductor Current Integration: i = Integral(di/dt)
-  gates[[length(gates) + 1]] <- Make_Integrator_OishiYordanov(
-    jn(name, '_int_i'), di_p, di_n, species_output$current_positive, species_output$current_negative, 0, 0, rate
-  )
-  
-  # 6. Capacitor Derivative: dVc/dt = i * (1/C)
-  dvc_p <- jn(name, '_dvc_p')
-  dvc_n <- jn(name, '_dvc_n')
-  gates[[length(gates) + 1]] <- Make_Mul2In_Wang(
-    jn(name, '_mul_dvcp'), species_output$current_positive, jn(name, '_1oC'), dvc_p, 0, 1 / ic$capacitance, rate
-  )
-  gates[[length(gates) + 1]] <- Make_Mul2In_Wang(
-    jn(name, '_mul_dvcn'), species_output$current_negative, jn(name, '_1oC'), dvc_n, 0, 1 / ic$capacitance, rate
-  )
-  
-  # 7. Capacitor Voltage Integration: V_C = Integral(dVc/dt)
-  gates[[length(gates) + 1]] <- Make_Integrator_OishiYordanov(
-    jn(name, '_int_vc'), dvc_p, dvc_n, species_output$voltage_positive, species_output$voltage_negative, 0, 0, rate
-  )
-  
-  return(gates)
-}
 # -----------------------------------------------------------------------------
 # 2. SPICE Netlist Parser
 # -----------------------------------------------------------------------------
@@ -242,15 +73,15 @@ build_crn_from_netlist <- function(parsed_netlist, circuit_name, rate) {
   
   if (parsed_netlist$has_R && parsed_netlist$has_L && parsed_netlist$has_C) {
     cat("Series RLC\n")
-    gates <- Make_Circuit_Series_RLC(circuit_name, il, ol, ic, rate)
+    gates <- Make_Circuit_RLC(circuit_name, il, ol, ic, rate)
     
   } else if (parsed_netlist$has_R && parsed_netlist$has_L && !parsed_netlist$has_C) {
     cat("Series RL\n")
-    gates <- Make_Circuit_Series_RL(circuit_name, il, ol, ic, rate)
+    gates <- Make_Circuit_RL(circuit_name, il, ol, ic, rate)
     
   } else if (parsed_netlist$has_R && !parsed_netlist$has_L && parsed_netlist$has_C) {
     cat("Series RC\n")
-    gates <- Make_Circuit_Series_RC(circuit_name, il, ol, ic, rate)
+    gates <- Make_Circuit_RC(circuit_name, il, ol, ic, rate)
     
   } else if (!parsed_netlist$has_R && parsed_netlist$has_L && !parsed_netlist$has_C) {
     cat("Pure Inductor\n")

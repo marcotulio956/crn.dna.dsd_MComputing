@@ -1,0 +1,98 @@
+flowchart LR
+    %% =========================================================
+    %% STYLES
+    %% =========================================================
+    classDef block fill:#ffffff,stroke:#000000,stroke-width:2px;
+    classDef signal fill:#ffffff,stroke:#000000,stroke-width:0px;
+
+    %% =========================================================
+    %% NONLINEAR DIODE SUBSYSTEM (Cubic Characteristic)
+    %% =========================================================
+    subgraph DIODE_BLOCK["$$\text{Nonlinear Resistor } i_N(v_1)$$" ]
+        direction LR
+        SQUARE["$$\text{Square: } (v_1^{\pm})^2$$"]
+        CUBE["$$\text{Cube: } (v_1^{\pm})^3$$"]
+        LIN_SCALE["$$\times a$$"]
+        CUB_SCALE["$$\times b$$"]
+        ADD_DIODE["$$i_N^{\pm} = a\,v_1^{\pm} + b\,(v_1^{\pm})^3$$"]
+
+        SQUARE -->|"$$x_1^2$$"| CUBE
+        CUBE -->|"$$x_1^3$$"| CUB_SCALE
+        LIN_SCALE -->|"$$a\,v_1^{\pm}$$"| ADD_DIODE
+        CUB_SCALE -->|"$$b\,v_1^3$$"| ADD_DIODE
+    end
+
+    %% =========================================================
+    %% CAPACITOR C1 DYNAMICS
+    %% =========================================================
+    subgraph C1_BLOCK["$$C_1 \text{ Voltage Subsystem}$$"]
+        direction LR
+        ADD_DV1["$$\Delta v_{1,\mathrm{raw}}^{\pm} = (v_2^{\pm} - v_1^{\pm}) - i_N^{\pm}$$"]
+        SCALE_C1["$$\times \frac{1}{R\,C_1}$$"]
+        INT_V1["$$\int dt$$"]
+        V1_OUT["$$v_1^{\pm}$$"]
+
+        ADD_DV1 -->|"$$\Delta v_{1,\mathrm{raw}}^{\pm}$$"| SCALE_C1
+        SCALE_C1 -->|"$$\frac{dv_1^{\pm}}{dt}$$"| INT_V1
+        INT_V1 -->|"$$v_1^{\pm}$$"| V1_OUT
+    end
+
+    %% =========================================================
+    %% CAPACITOR C2 DYNAMICS
+    %% =========================================================
+    subgraph C2_BLOCK["$$C_2 \text{ Voltage Subsystem}$$"]
+        direction LR
+        ADD_DV2["$$\Delta v_{2,\mathrm{raw}}^{\pm} = (v_1^{\pm} - v_2^{\pm}) + i_L^{\pm}$$"]
+        SCALE_C2["$$\times \frac{1}{R\,C_2}$$"]
+        INT_V2["$$\int dt$$"]
+        V2_OUT["$$v_2^{\pm}$$"]
+
+        ADD_DV2 -->|"$$\Delta v_{2,\mathrm{raw}}^{\pm}$$"| SCALE_C2
+        SCALE_C2 -->|"$$\frac{dv_2^{\pm}}{dt}$$"| INT_V2
+        INT_V2 -->|"$$v_2^{\pm}$$"| V2_OUT
+    end
+
+    %% =========================================================
+    %% INDUCTOR L DYNAMICS
+    %% =========================================================
+    subgraph L_BLOCK["$$L \text{ Current Subsystem}$$"]
+        direction LR
+        SCALE_L["$$\times \frac{1}{L}$$"]
+        INT_L["$$\int dt$$"]
+        IL_OUT["$$i_L^{\pm}$$"]
+
+        SCALE_L -->|"$$\frac{di_L^{\pm}}{dt}$$"| INT_L
+        INT_L -->|"$$i_L^{\pm}$$"| IL_OUT
+    end
+
+    %% =========================================================
+    %% GLOBAL ROUTING & FEEDBACK LOOPS
+    %% =========================================================
+    
+    %% v1 Routing
+    V1_OUT -->|"$$v_1^{\pm}$$"| SQUARE
+    V1_OUT -->|"$$v_1^{\pm}$$"| LIN_SCALE
+    V1_OUT -->|"$$v_1^{\pm}$$"| ADD_DV1
+    V1_OUT -->|"$$v_1^{\pm}$$"| ADD_DV2
+
+    %% Diode Current Routing
+    ADD_DIODE -->|"$$i_N^{\pm}$$"| ADD_DV1
+
+    %% v2 Routing
+    V2_OUT -->|"$$v_2^{\pm}$$"| ADD_DV1
+    V2_OUT -->|"$$v_2^{\pm}$$"| ADD_DV2
+    V2_OUT -->|"$$\text{Rail Swap } (-v_2^{\pm})$$"| SCALE_L
+
+    %% iL Routing
+    IL_OUT -->|"$$i_L^{\pm}$$"| ADD_DV2
+
+    %% =========================================================
+    %% ASSIGN CLASSES & STYLES
+    %% =========================================================
+    class SQUARE,CUBE,LIN_SCALE,CUB_SCALE,ADD_DIODE,ADD_DV1,SCALE_C1,INT_V1,ADD_DV2,SCALE_C2,INT_V2,SCALE_L,INT_L block;
+    class V1_OUT,V2_OUT,IL_OUT signal;
+    
+    style DIODE_BLOCK fill:transparent,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
+    style C1_BLOCK fill:transparent,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
+    style C2_BLOCK fill:transparent,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
+    style L_BLOCK fill:transparent,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;

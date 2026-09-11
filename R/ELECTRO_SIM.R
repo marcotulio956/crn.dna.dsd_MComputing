@@ -339,6 +339,29 @@ simulate_sRLC_voltage_source <- function(timing, source_voltage, resistance, ind
   ))
 }
 
+simulate_Chua <- function(timing, capacitance1 = 1, capacitance2 = 1,
+                          inductance = 1, resistance = 1,
+                          diode_linear = -1.2, diode_cubic = 0.2,
+                          initial_state = c(0.1, 0, 0)) {
+  n <- length(timing)
+  state <- matrix(0, nrow = n, ncol = 3)
+  state[1, ] <- initial_state
+
+  for (i in seq_len(n - 1)) {
+    dt <- timing[i + 1] - timing[i]
+    v1 <- state[i, 1]
+    v2 <- state[i, 2]
+    current <- state[i, 3]
+    diode_current <- diode_linear * v1 + diode_cubic * v1^3
+    dv1 <- ((v2 - v1) / resistance - diode_current) / capacitance1
+    dv2 <- ((v1 - v2) / resistance + current) / capacitance2
+    di <- -v2 / inductance
+    state[i + 1, ] <- state[i, ] + dt * c(dv1, dv2, di)
+  }
+
+  data.frame(time = timing, v1 = state[, 1], v2 = state[, 2], il = state[, 3])
+}
+
 simulate_Vcc <- function(t,
                          V1 = 0, # tensão inicial
                          V2 = 10, # tensão de pulso

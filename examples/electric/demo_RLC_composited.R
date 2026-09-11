@@ -37,9 +37,12 @@ for (regime in names(behaviours)) {
   C <- params["C"]
 
   circuit <- make_circuit(timing)
-
-  circuit <- Make_Circuit_RLC_Composited_RLC(timing, regime)
-
+  
+  
+  rlc_comp <- Make_RLC_Component(R,L,C)
+  rlc_comp$il$voltage_positive <- "v_in"
+  circuit <- Make_Circuit_RLC_Composited2(circuit, rlc_comp, rate=1)
+  circuit <- Make_Circuit_RLC("rlc_ss",rlc_comp$il,rlc_comp$ol,rlc_comp$ic, p)
 
   cat(sprintf("Simulating %s RLC circuit...\n", regime))
   result <- react4(
@@ -51,19 +54,19 @@ for (regime in names(behaviours)) {
     engine = solver,
     verbose = FALSE,
     forced_concentrations = list(
-    v1p = function(t) square_input(t, pulse_width = 60, period = 60, amplitude = 10)
+    v_in = function(t) square_input(t, pulse_width = 60, period = 60, amplitude = 10)
     )
   )
 
 
   if (!"vc_in" %in% names(behavior)) {
-    behavior[["v_in"]] <- result[, "v1p"]
+    behavior[["v_in"]] <- result[, "v_in"]
   }
   # all_result[[jn("i_",regime)]] <- result[, "rlcol_ip"] - result[, "rlcol_in"]
-  behavior[[jn("vc_",regime)]] <- result[, "rlcol_vcp"] - result[, "rlcol_vcn"] 
+  behavior[[jn("vc_",regime)]] <- result[,  rlc_comp$ol$voltage_positive] - result[,  rlc_comp$ol$voltage_negative] 
 
   simRLC <- simulate_sRLC_voltage_source(
-    timing, result[['v1p']], R, L, C
+    timing, result[['v_in']], R, L, C
   )
 
   behavior[[jn("V(C)_",regime)]] <- simRLC$capacitor_voltage
@@ -71,27 +74,27 @@ for (regime in names(behaviours)) {
 
   # assign(paste0("result_", gsub(" ", "_", regime)), result)
 
-  metrics <- analyze_transient_metrics(
-    timing = timing,
-    v_in = behavior[["v_in"]],
-    vc_model = result[['rlcol_vcp']] - result[['rlcol_vcn']],
-    vc_sim = simRLC$capacitor_voltage,
-    t0 = 0,
-    t1 = 30,
-    resistance = R,
-    inductance = L,
-    capacitance = C
-  )
+  # metrics <- analyze_transient_metrics(
+  #   timing = timing,
+  #   v_in = behavior[["v_in"]],
+  #   vc_model = result[['rlcol_vcp']] - result[['rlcol_vcn']],
+  #   vc_sim = simRLC$capacitor_voltage,
+  #   t0 = 0,
+  #   t1 = 30,
+  #   resistance = R,
+  #   inductance = L,
+  #   capacitance = C
+  # )
 
-    print(metrics)
+    # print(metrics)
 }
 
 
 plot_behavior(
   behavior, 
-  title = sprintf("RLC Response DSD Vin=10[V]\n"), # "RLC Step Response 
+  title = sprintf("Composite RLC Response DSD Vin=10[V]\n"), # "RLC Step Response 
   species = c('v_in', 'vc_O', 'vc_C', 'vc_U'),
   species_dotted= c('V(C)_O', 'V(C)_C', 'V(C)_U'),
 )
 
-dsd <- Translate_4domain(circuit)
+# dsd <- Translate_4domain(circuit)

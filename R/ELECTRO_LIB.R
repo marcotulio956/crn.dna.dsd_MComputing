@@ -543,8 +543,9 @@ Make_Inductor_Component <- function(id, inductance, resistance) {
   return(l1)
 }
 
-Make_RLC_Component <- function(resistance, inductance, capacitance) {
+Make_RLC_Component <- function(resistance, inductance, capacitance, regime = 'U') {
   rlc <- c()
+  rlc$regime <- regime
   # Dual rail species for voltages, and current
 
   rlc$name <- jn('rlc')
@@ -1124,6 +1125,303 @@ Make_Circuit_Pure_Inductor_Integrator <- function(name, species_input, species_o
   return(gates)
 }
 
+flatten_gate_groups <- function(...) {
+
+  gates <- list()
+
+  for (group in list(...)) gates <- append(gates, group)
+
+  gates
+
+}
+
+make_signed_add3 <- function(name, positive_inputs, negative_inputs, output_positive,
+
+                             output_negative, rate) {
+
+  positive_gate <- Make_Add3In(
+
+    jn(name, '_p'), positive_inputs[1], positive_inputs[2], positive_inputs[3],
+
+    output_positive, 0, 0, 0, rate
+
+  )
+
+  negative_gate <- Make_Add3In(
+
+    jn(name, '_n'), negative_igitnputs[1], negative_inputs[2], negative_inputs[3],
+
+    output_negative, 0, 0, 0, rate
+
+  )
+
+  list(positive_gate, negative_gate)
+
+}
+
+
+
+make_signed_multiplier <- function(name, input1, input2, output_positive,
+
+                                   output_negative, rate) {
+
+  pp <- Make_Mul2In_Wang(jn(name, '_pp'), input1[1], input2[1],
+
+                         jn(name, '_pp_out'), 0, 0, rate)
+
+  nn <- Make_Mul2In_Wang(jn(name, '_nn'), input1[2], input2[2],
+
+                         jn(name, '_nn_out'), 0, 0, rate)
+
+  pn <- Make_Mul2In_Wang(jn(name, '_pn'), input1[1], input2[2],
+
+                         jn(name, '_pn_out'), 0, 0, rate)
+
+  np <- Make_Mul2In_Wang(jn(name, '_np'), input1[2], input2[1],
+
+                         jn(name, '_np_out'), 0, 0, rate)
+
+  list(
+
+    pp, nn, pn, np,
+
+    Make_Add3In(jn(name, '_sum_p'), pp$species$output, nn$species$output,
+
+                jn(name, '_dummy_p'), output_positive, 0, 0, 0, rate),
+
+    Make_Add3In(jn(name, '_sum_n'), pn$species$output, np$species$output,
+
+                jn(name, '_dummy_n'), output_negative, 0, 0, 0, rate)
+
+  )
+
+}
+
+#' Constant dual-rail scalar multiplier: Y = scalar * X
+#' Requires only 2 gates (swaps rails for negative scalars)
+make_signed_scalar_mul <- function(name, input_signed, output_signed, scalar, rate) {
+  k_val <- abs(scalar)
+  k_species <- jn(name, '_k')
+  
+  # Swap positive/negative input rails if multiplying by a negative constant
+  if (scalar >= 0) {
+    p_in <- input_signed[1]
+    n_in <- input_signed[2]
+  } else {
+    p_in <- input_signed[2]
+    n_in <- input_signed[1]
+  }
+  
+  g_p <- Make_Mul2In_Wang(jn(name, '_p'), p_in, k_species, output_signed[1], 0, k_val, rate)
+  g_n <- Make_Mul2In_Wang(jn(name, '_n'), n_in, k_species, output_signed[2], 0, k_val, rate)
+  
+  list(g_p, g_n)
+}
+
+#' Build a Chua oscillator using modular analog CRN primitives
+Make_Circuit_Chua <- function(circuit, capacitor1, capacitor2, inductor, 
+                              resistance = 1.0, rate = 1.0,
+                              diode_linear = -1.2, diode_cubic = 0.2) {
+  name <- "chua"
+  
+  # --- 1. Extract Port Signals and Physical Parameters ---
+  x1_p <- capacitor1$ol$voltage_positive
+  x1_n <- capacitor1$ol$voltage_negative
+  x2_p <- capacitor2$ol$voltage_positive
+  x2_n <- capacitor2$ol$voltage_negative
+  il_p <- inductor$ol$current_positive
+  il_n <- inductor$ol$current_negative
+  
+  c1 <- capacitor1$ic$capacitance
+  c2 <- capacitor2$ic$capacitance
+  L  <- inductor$ic$inductance
+  
+  x1 <- c(x1_p, x1_n)
+  x2 <- c(x2_p, x2_n)
+  il <- c(il_p, il_n)
+
+  # --- 2. Define Internal Dual-Rail Species ---
+  x1_sq        <- c(jn(name, '_x1_sq_p'), jn(name, '_x1_sq_n'))
+  x1_cube      <- c(jn(name, '_x1_cube_p'), jn(name, '_x1_cube_n'))
+  diode_lin    <- c(jn(name, '_diode_lin_p'), jn(name, '_diode_lin_n'))
+  diode_cub    <- c(jn(name, '_diode_cub_p'), jn(name, '_diode_cub_n'))
+  diode        <- c(jn(name, '_diode_p'), jn(name, '_diode_n'))
+  
+  dv1_unscaled <- c(jn(name, '_dv1_u_p'), jn(name, '_dv1_u_n'))
+  dv2_unscaled <- c(jn(name, '_dv2_u_p'), jn(name, '_dv2_u_n'))
+  
+  dv1_scaled   <- c(jn(name, '_dv1_s_p'), jn(name, '_dv1_s_n'))
+  dv2_scaled   <- c(jn(name, '_dv2_s_p'), jn(name, '_dv2_s_n'))
+  di_scaled    <- c(jn(name, '_di_s_p'),  jn(name, '_di_s_n'))
+  
+  dummy_zero   <- jn(name, '_zero')
+
+  # --- 3. Construct Diode Characteristic: i_N(v1) = a*v1 + b*v1^3 ---
+  g_sq   <- make_signed_multiplier(jn(name, '_sq'), x1, x1, x1_sq[1], x1_sq[2], rate)
+  g_cube <- make_signed_multiplier(jn(name, '_cube'), x1_sq, x1, x1_cube[1], x1_cube[2], rate)
+  
+  g_lin_scale <- make_signed_scalar_mul(jn(name, '_lin_scale'), x1, diode_lin, diode_linear, rate)
+  g_cub_scale <- make_signed_scalar_mul(jn(name, '_cub_scale'), x1_cube, diode_cub, diode_cubic, rate)
+  
+  g_diode <- make_signed_add3(jn(name, '_diode_sum'),
+                              c(diode_lin[1], diode_cub[1], dummy_zero),
+                              c(diode_lin[2], diode_cub[2], dummy_zero),
+                              diode[1], diode[2], rate)
+
+  # --- 4. Form State Differential Terms ---
+  # dv1 = (v2 - v1)/R - i_N(v1)
+  g_dv1 <- make_signed_add3(jn(name, '_add_dv1'),
+                            c(x2_p, x1_n, diode[2]),
+                            c(x2_n, x1_p, diode[1]),
+                            dv1_unscaled[1], dv1_unscaled[2], rate)
+
+  # dv2 = (v1 - v2)/R + i_L
+  g_dv2 <- make_signed_add3(jn(name, '_add_dv2'),
+                            c(x1_p, x2_n, il_p),
+                            c(x1_n, x2_p, il_n),
+                            dv2_unscaled[1], dv2_unscaled[2], rate)
+
+  # --- 5. Scale Derivatives by (1/C1, 1/C2, 1/L) ---
+  g_c1_scale <- make_signed_scalar_mul(jn(name, '_c1_scale'), dv1_unscaled, dv1_scaled, 1 / (c1 * resistance), rate)
+  g_c2_scale <- make_signed_scalar_mul(jn(name, '_c2_scale'), dv2_unscaled, dv2_scaled, 1 / (c2 * resistance), rate)
+  
+  # di_L = -v2 / L (Direct rail swap eliminates extra subtraction stage)
+  g_l_scale  <- make_signed_scalar_mul(jn(name, '_l_scale'), c(x2_n, x2_p), di_scaled, 1 / L, rate)
+
+  # --- 6. State Integrators ---
+  g_int_v1 <- Make_Integrator_OishiYordanov(jn(name, '_int_v1'), dv1_scaled[1], dv1_scaled[2], x1_p, x1_n, 0, 0, rate)
+  g_int_v2 <- Make_Integrator_OishiYordanov(jn(name, '_int_v2'), dv2_scaled[1], dv2_scaled[2], x2_p, x2_n, 0, 0, rate)
+  g_int_i  <- Make_Integrator_OishiYordanov(jn(name, '_int_i'),  di_scaled[1],  di_scaled[2],  il_p, il_n, 0, 0, rate)
+
+  # --- 7. Register and Compile ---
+  all_gates <- flatten_gate_groups(
+    g_sq, g_cube, g_lin_scale, g_cub_scale, g_diode,
+    g_dv1, g_dv2, g_c1_scale, g_c2_scale, g_l_scale,
+    list(g_int_v1, g_int_v2, g_int_i)
+  )
+
+  circuit <- circuit_add_compile_gates(circuit, all_gates)
+  return(circuit)
+}
+
+#' Modular Non-Linear Resistor (Chua Diode CRN Sub-module)
+#' Computes i_N = diode_linear * v1 + diode_cubic * v1^3
+Make_Chua_Diode_CRN <- function(name, v1_p, v1_n, i_diode_p, i_diode_n, 
+                                diode_linear = -1.2, diode_cubic = 0.2, rate = 1.0) {
+  
+  # Species definitions
+  x1       <- c(v1_p, v1_n)
+  x1_sq    <- c(jn(name, '_sq_p'), jn(name, '_sq_n'))
+  x1_cube  <- c(jn(name, '_cube_p'), jn(name, '_cube_n'))
+  i_lin    <- c(jn(name, '_ilin_p'), jn(name, '_ilin_n'))
+  i_cub    <- c(jn(name, '_icub_p'), jn(name, '_icub_n'))
+  dummy_0  <- jn(name, '_zero')
+
+  # 1. Polynomial Terms: v1^2 and v1^3
+  g_sq   <- make_signed_multiplier(jn(name, '_sq'), x1, x1, x1_sq[1], x1_sq[2], rate)
+  g_cube <- make_signed_multiplier(jn(name, '_cube'), x1_sq, x1, x1_cube[1], x1_cube[2], rate)
+
+  # 2. Linear Scaling (i_lin = diode_linear * v1)
+  g_lin <- make_signed_scalar_mul(jn(name, '_lin_scale'), x1, i_lin, diode_linear, rate)
+
+  # 3. Cubic Scaling (i_cub = diode_cubic * v1^3)
+  g_cub <- make_signed_scalar_mul(jn(name, '_cub_scale'), x1_cube, i_cub, diode_cubic, rate)
+
+  # 4. Summation: i_N = i_lin + i_cub
+  g_sum <- make_signed_add3(jn(name, '_sum'),
+                             c(i_lin[1], i_cub[1], dummy_0),
+                             c(i_lin[2], i_cub[2], dummy_0),
+                             i_diode_p, i_diode_n, rate)
+
+  flatten_gate_groups(g_sq, g_cube, g_lin, g_cub, g_sum)
+}
+
+#' Composited Chua Circuit using standard component gates + Diode CRN
+Make_Circuit_Chua_Composited <- function(circuit, c1_comp, c2_comp, l_comp,
+                                         resistance = 1.0, rate = 1.0,
+                                         diode_linear = -1.2, diode_cubic = 0.2) {
+  name <- "chua"
+
+  # Extract signals from standard component objects
+  v1_p <- c1_comp$ol$voltage_positive
+  v1_n <- c1_comp$ol$voltage_negative
+  
+  v2_p <- c2_comp$ol$voltage_positive
+  v2_n <- c2_comp$ol$voltage_negative
+  
+  il_p <- l_comp$ol$current_positive
+  il_n <- l_comp$ol$current_negative
+
+  # Dual-rail internal signals
+  i_diode_p <- jn(name, '_idiode_p')
+  i_diode_n <- jn(name, '_idiode_n')
+  
+  i_res_p   <- jn(name, '_ires_p')
+  i_res_n   <- jn(name, '_ires_n')
+  
+  dv1_p     <- jn(name, '_dv1_p')
+  dv1_n     <- jn(name, '_dv1_n')
+  
+  dv2_p     <- jn(name, '_dv2_p')
+  dv2_n     <- jn(name, '_dv2_n')
+  
+  vl_p      <- jn(name, '_vl_p')
+  vl_n      <- jn(name, '_vl_n')
+
+  C1 <- c1_comp$ic$capacitance
+  C2 <- c2_comp$ic$capacitance
+  L  <- l_comp$ic$inductance
+
+  # -------------------------------------------------------------
+  # 1. Diode CRN Sub-module
+  # -------------------------------------------------------------
+  diode_gates <- Make_Chua_Diode_CRN(jn(name, '_diode'), v1_p, v1_n, 
+                                     i_diode_p, i_diode_n, 
+                                     diode_linear, diode_cubic, rate)
+
+  # -------------------------------------------------------------
+  # 2. Linear Resistor Coupling: i_R = (v1 - v2) / R
+  # -------------------------------------------------------------
+  g_ires_p <- Make_Add3In(jn(name, '_add_ires_p'), v1_p, v2_n, jn(name, '_z1'), i_res_p, 0, 0, 0, rate / resistance)
+  g_ires_n <- Make_Add3In(jn(name, '_add_ires_n'), v1_n, v2_p, jn(name, '_z2'), i_res_n, 0, 0, 0, rate / resistance)
+
+  # -------------------------------------------------------------
+  # 3. Node Dynamics for C1: dv1/dt = (1/C1) * (-i_R - i_N)
+  # -------------------------------------------------------------
+  g_dv1_p <- Make_Add3In(jn(name, '_add_dv1_p'), i_res_n, i_diode_n, jn(name, '_z3'), dv1_p, 0, 0, 0, rate / C1)
+  g_dv1_n <- Make_Add3In(jn(name, '_add_dv1_n'), i_res_p, i_diode_p, jn(name, '_z4'), dv1_n, 0, 0, 0, rate / C1)
+
+  g_int_v1 <- Make_Integrator_OishiYordanov(jn(name, '_int_v1'), dv1_p, dv1_n, v1_p, v1_n, 0, 0, rate)
+
+  # -------------------------------------------------------------
+  # 4. Node Dynamics for C2: dv2/dt = (1/C2) * (i_R + i_L)
+  # -------------------------------------------------------------
+  g_dv2_p <- Make_Add3In(jn(name, '_add_dv2_p'), i_res_p, il_p, jn(name, '_z5'), dv2_p, 0, 0, 0, rate / C2)
+  g_dv2_n <- Make_Add3In(jn(name, '_add_dv2_n'), i_res_n, il_n, jn(name, '_z6'), dv2_n, 0, 0, 0, rate / C2)
+
+  g_int_v2 <- Make_Integrator_OishiYordanov(jn(name, '_int_v2'), dv2_p, dv2_n, v2_p, v2_n, 0, 0, rate)
+
+  # -------------------------------------------------------------
+  # 5. Inductor Dynamics L: di_L/dt = -v2 / L
+  # -------------------------------------------------------------
+  g_dil_p <- Make_Mul2In_Wang(jn(name, '_dil_p'), v2_n, jn(name, '_k_l'), vl_p, 0, 1 / L, rate)
+  g_dil_n <- Make_Mul2In_Wang(jn(name, '_dil_n'), v2_p, jn(name, '_k_l'), vl_n, 0, 1 / L, rate)
+
+  g_int_il <- Make_Integrator_OishiYordanov(jn(name, '_int_il'), vl_p, vl_n, il_p, il_n, 0, 0, rate)
+
+  # Combine all gate structures
+  all_gates <- flatten_gate_groups(
+    diode_gates,
+    list(g_ires_p, g_ires_n),
+    list(g_dv1_p, g_dv1_n, g_int_v1),
+    list(g_dv2_p, g_dv2_n, g_int_v2),
+    list(g_dil_p, g_dil_n, g_int_il)
+  )
+
+  circuit <- circuit_add_compile_gates(circuit, all_gates)
+  return(circuit)
+}
+
 Make_Circuit_RLC_Composited <- function(timing, regime) {
 
     behaviours <- list(
@@ -1137,19 +1435,9 @@ Make_Circuit_RLC_Composited <- function(timing, regime) {
   L <- params["L"]
   C <- params["C"]
 
-  # Base rate for the components
   rate <- 1e-3
   
   circuit <- make_circuit(timing)
-  
-  # 1. Input Signal Generation (Digital/Analog Interface)
-  # g_dalchau <- Make_Oscillator_Dalchau('sin', 'x', 'v1p', 'z', 1e-3, 1e-3, 15, 4e-1)
-  # c_comparator <- Make_Mux2_balanced(
-  #   'mux1', 'x', 'v1p', 'low', 'high', 'comp_out',
-  #   0, 0, 3, 8, 0, 7.0e-1
-  # )
-  # circuit <- circuit_add_gate(circuit, g_dalchau)
-  # circuit <- circuit_add_gate(circuit, c_comparator)
   
   # 2. Define Shared Species for the Series RLC Connection
   # V_RL = V_in - V_C
@@ -1207,6 +1495,81 @@ Make_Circuit_RLC_Composited <- function(timing, regime) {
   
   g_int_vc <- Make_Integrator_OishiYordanov(
     jn('C_int_vc_', regime),
+    dvc_p, dvc_n,
+    vc_p, vc_n,
+    0, 0, rate
+  )
+  
+  circuit <- circuit_add_compile_gates(circuit, list(g_mul_dvcp, g_mul_dvcn, g_int_vc))
+
+  return(circuit)
+}
+
+Make_Circuit_RLC_Composited2 <- function(circuit, rlc_comp, rate = 1) {
+  name <- rlc_comp$name
+  
+  # Extract Parameters
+  R <- rlc_comp$ic$resistance
+  L <- rlc_comp$ic$inductance
+  C <- rlc_comp$ic$capacitance
+  
+  # Input Signals
+  v1p <- rlc_comp$il$voltage_positive
+  v1n <- rlc_comp$il$voltage_negative
+  
+  # Output Signals
+  vc_p <- rlc_comp$ol$voltage_positive
+  vc_n <- rlc_comp$ol$voltage_negative
+  i_series_p <- rlc_comp$ol$current_positive
+  i_series_n <- rlc_comp$ol$current_negative
+
+  # Internal Species
+  v_rl_p <- jn(name, '_vrl_p')
+  v_rl_n <- jn(name, '_vrl_n')
+  dummy_0 <- jn(name, '_dummy_0')
+
+  # 1. Voltage Subtraction (Feedback Loop): V_RL = V_in - V_C
+  g_add_vrl_p <- Make_Add3In(
+    jn(name, '_add_vrl_p'),
+    v1p, vc_n, dummy_0, # V_inp + V_Cn (dual rail subtraction)
+    v_rl_p,
+    0, 0, 0, rate
+  )
+  g_add_vrl_n <- Make_Add3In(
+    jn(name, '_add_vrl_n'),
+    v1n, vc_p, dummy_0, # V_inn + V_Cp
+    v_rl_n,
+    0, 0, 0, rate
+  )
+  circuit <- circuit_add_compile_gates(circuit, list(g_add_vrl_p, g_add_vrl_n))
+
+  # 2. Instantiate the RL Block (Resistor + Inductor)
+  rl_ic <- list(resistance = R, inductance = L)
+  rl_input <- list(voltage_positive = v_rl_p, voltage_negative = v_rl_n)
+  rl_output <- list(current_positive = i_series_p, current_negative = i_series_n, 
+                    voltage_positive = jn(name, '_vl_p_dummy'), 
+                    voltage_negative = jn(name, '_vl_n_dummy'))
+  
+  rl_gates <- Make_Circuit_RL2(jn(name, '_RL'), rl_input, rl_output, rl_ic, rate)
+  circuit <- circuit_add_compile_gates(circuit, rl_gates)
+
+  # 3. Instantiate the C Block (Capacitor)
+  dvc_p <- jn(name, '_C_dvc_p')
+  dvc_n <- jn(name, '_C_dvc_n')
+  
+  g_mul_dvcp <- Make_Mul2In_Wang(
+    jn(name, '_C_mul_dvcp'),
+    i_series_p, jn(name, '_C_1oC'), dvc_p,
+    0, 1 / C, rate
+  )
+  g_mul_dvcn <- Make_Mul2In_Wang(
+    jn(name, '_C_mul_dvcn'),
+    i_series_n, jn(name, '_C_1oC'), dvc_n,
+    0, 1 / C, rate
+  )
+  
+  g_int_vc <- Make_Integrator_OishiYordanov(
+    jn(name, '_C_int_vc'),
     dvc_p, dvc_n,
     vc_p, vc_n,
     0, 0, rate
