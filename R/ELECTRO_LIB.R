@@ -1149,7 +1149,7 @@ make_signed_add3 <- function(name, positive_inputs, negative_inputs, output_posi
 
   negative_gate <- Make_Add3In(
 
-    jn(name, '_n'), negative_igitnputs[1], negative_inputs[2], negative_inputs[3],
+    jn(name, '_n'), negative_inputs[1], negative_inputs[2], negative_inputs[3],
 
     output_negative, 0, 0, 0, rate
 

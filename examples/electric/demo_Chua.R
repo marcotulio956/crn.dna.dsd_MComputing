@@ -8,8 +8,8 @@ source('R/ANALOG_GATE_LIB.R')
 source('R/ELECTRO_LIB.R')
 source('R/ELECTRO_SIM.R')
 
-timing <- seq(0, 20, by = 0.5)
-rate <- 1
+timing <- seq(0, 20, by = 0.001)
+rate <- 1e3
 c1 <- Make_Capacitor_Component(1, capacitance = 10)
 c2 <- Make_Capacitor_Component(2, capacitance = 1)
 l1 <- Make_Inductor_Component(1, inductance = 1.4, resistance = 1)
