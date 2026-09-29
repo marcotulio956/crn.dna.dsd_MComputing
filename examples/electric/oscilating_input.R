@@ -21,7 +21,7 @@ source('R/metric_functions.R')
 
 jn <- function(...) { paste(..., sep = '') }
 
-source("examples/pipeline/PIPELINE_LIB.R")
+source("R/PIPELINE_LIB.R")
 
 
 Make_SquareWave_Clock <- function(name, amplitude = 10, period = 20, start_high = FALSE) {

@@ -1,0 +1,72 @@
+{
+  "goticulasIniciais": [
+    {
+      "id": 0,
+      "nome": "Signal droplet",
+      "pump": "Input A",
+      "volume": 2.25e-13,
+      "volumeUnit": "m3",
+      "especies": [
+        {"nome": "A", "concentracaoInicial": 10},
+        {"nome": "B", "concentracaoInicial": 0},
+        {"nome": "Fuel", "concentracaoInicial": 0},
+        {"nome": "Output", "concentracaoInicial": 0},
+        {"nome": "Waste", "concentracaoInicial": 0}
+      ]
+    },
+    {
+      "id": 1,
+      "nome": "Fuel droplet",
+      "pump": "Input Fuel",
+      "volume": 6.75e-13,
+      "volumeUnit": "m3",
+      "especies": [
+        {"nome": "A", "concentracaoInicial": 0},
+        {"nome": "B", "concentracaoInicial": 4},
+        {"nome": "Fuel", "concentracaoInicial": 8},
+        {"nome": "Output", "concentracaoInicial": 0},
+        {"nome": "Waste", "concentracaoInicial": 0}
+      ]
+    }
+  ],
+  "reacoes": [
+    {"reacao": "A + B -> Waste", "rate": 0.0028},
+    {"reacao": "A + Fuel -> Output", "rate": 0.0015},
+    {"reacao": "B + Fuel -> Output", "rate": 0.0015}
+  ],
+  "simulation": {
+    "engine": "desolve",
+    "stochastic": false,
+    "dna": true,
+    "volume": 100,
+    "seed": 1234
+  },
+  "forcing": {
+    "enabled": true,
+    "name": "step_input",
+    "species": "Fuel",
+    "params": {"time": 2, "amplitude": 2}
+  },
+  "timing": {
+    "enabled": true,
+    "tolerancePercent": 1,
+    "stableSamples": 5,
+    "step": 0.1,
+    "maxTime": 100
+  },
+  "mixing": {
+    "concentrationUnit": "nmol/L",
+    "volumeUnit": "m3"
+  },
+  "nodes": [
+    {"name": "Input A", "x": 100, "y": 100, "isSink": false},
+    {"name": "Input Fuel", "x": 100, "y": 300, "isSink": false},
+    {"name": "Reaction chamber", "x": 300, "y": 200, "isSink": false},
+    {"name": "Output", "x": 550, "y": 200, "isSink": true}
+  ],
+  "edges": [
+    {"from": {"name": "Input A", "x": 100, "y": 100}, "to": {"name": "Reaction chamber", "x": 300, "y": 200}, "height": 5},
+    {"from": {"name": "Input Fuel", "x": 100, "y": 300}, "to": {"name": "Reaction chamber", "x": 300, "y": 200}, "height": 5},
+    {"from": {"name": "Reaction chamber", "x": 300, "y": 200}, "to": {"name": "Output", "x": 550, "y": 200}, "height": 5}
+  ]
+}

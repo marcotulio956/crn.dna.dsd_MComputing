@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  dnar-dev:
+    image: dnar-dev
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    command: ["bash", "-lc", "tail -f /dev/null"]
+    volumes:
+      - ../:/workspaces/dnar
+
+  microfluidica-app:
+    build:
+      context: ..
+      dockerfile: fluidnar/Dockerfile.dev
+    depends_on:
+      - dnar-dev
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app/Python
+      - R_HOME=/usr/local/lib/R
+      - LD_LIBRARY_PATH=/usr/local/lib/R/lib
+      - DNAR_ROOT=/workspaces/dnar
+      - FLUIDNAR_WORKDIR=/app/Python
+    volumes:
+      - ../R:/workspaces/dnar/R:ro
+      - ./Python:/app/Python
+      - ./DNAr:/app/DNAr
+      - ./frontend/new-interface/build:/app/frontend/new-interface/build:ro
+    restart: unless-stopped

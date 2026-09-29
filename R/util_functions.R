@@ -1,7 +1,7 @@
 library(ggplot2) # plot()
 library(dplyr) # mutate()
 
-React_circuit <- function(circuit, forced_concentrations = NULL, engine = 'desolve') {
+React_circuit <- function(circuit, forced_concentrations = NULL, engine = 'desolve', verbose = FALSE, ...) {
   return(react4(
     species   = circuit$species,
     ci        = circuit$ci,
@@ -9,28 +9,32 @@ React_circuit <- function(circuit, forced_concentrations = NULL, engine = 'desol
     ki        = circuit$ki,
     t         = circuit$t,
     engine = engine,
-    # engine = 'diffeqr',
-    verbose = FALSE,
-    forced_concentrations = forced_concentrations
-      # list(
-      # #  Ip = Ip_crn_ml_input
-      # )
+    verbose = verbose,
+    forced_concentrations = forced_concentrations,
+    ...
   ))
 }
 
-React_4domain <- function(circuit, forced_concentrations = NULL, engine = 'desolve') {
+React_4domain <- function(circuit, forced_concentrations = NULL, engine = 'desolve',
+                          qmax = 1e6, cmax = 1e7, alpha = 1, beta = 1,
+                          auto_buffer = TRUE, dna_kinetics = NULL,
+                          verbose = FALSE, ...) {
   return(react_4domain(
     species   = circuit$species,
     ci        = circuit$ci,
     reactions = circuit$reactions,
     ki        = circuit$ki,
-    qmax      = 1e6, # maximum strand displacement rate constant
-    cmax      = 1e7, # 1e-4  # starting concentration of auxiliary complexes Gi and Ti
-    alpha     = 1,   # DSD timescale versus CRN
-    beta      = 1,   # DSD concentration scale versus CRN
+    qmax      = qmax,
+    cmax      = cmax,
+    alpha     = alpha,
+    beta      = beta,
     t         = circuit$t,
+    auto_buffer = auto_buffer,
+    dna_kinetics = dna_kinetics,
     forced_concentrations = forced_concentrations,
-    engine = engine
+    engine = engine,
+    verbose = verbose,
+    ...
   ))
 }
 
@@ -63,21 +67,65 @@ Translate_4domain <- function(circuit) {
 }
 
 
-React_stochastic <-function(circuit, volume = 10, seed = NULL) {
+React_stochastic <- function(circuit, volume = 10, seed = NULL,
+                             forced_concentrations = NULL,
+                             verbose = FALSE, ...) {
   return(react_stochastic_frates(
     species = circuit$species,
     ci = circuit$ci,
     reactions = circuit$reactions,
     ki = circuit$ki,
     t = circuit$t,
-    forced_concentrations =  
-      list(
-       #Ip = fuzzy_input_func 
-      ),
-    verbose = FALSE,
+    forced_concentrations = forced_concentrations,
+    verbose = verbose,
     volume = volume,
-    seed = seed
+    seed = seed,
+    ...
   ))
+}
+
+React_4domain_stochastic <- function(circuit, volume = 10, seed = NULL,
+                                     forced_concentrations = NULL,
+                                     qmax = 1e6, cmax = 1e7,
+                                     alpha = 1, beta = 1,
+                                     auto_buffer = TRUE,
+                                     dna_kinetics = NULL,
+                                     verbose = FALSE, ...) {
+  translated <- translate_4domain_crn(
+    species = circuit$species,
+    ci = circuit$ci,
+    reactions = circuit$reactions,
+    ki = circuit$ki,
+    qmax = qmax,
+    cmax = cmax,
+    alpha = alpha,
+    beta = beta,
+    t = circuit$t,
+    auto_buffer = auto_buffer,
+    dna_kinetics = dna_kinetics,
+    apply_dna_kinetics = TRUE
+  )
+
+  behavior <- react_stochastic_frates(
+    species = translated$species,
+    ci = translated$ci,
+    reactions = translated$reactions,
+    ki = translated$ki,
+    t = circuit$t,
+    forced_concentrations = forced_concentrations,
+    volume = volume,
+    seed = seed,
+    verbose = verbose,
+    ...
+  )
+
+  list(
+    behavior = behavior,
+    species = translated$species,
+    ci = translated$ci,
+    reactions = translated$reactions,
+    ki = translated$ki
+  )
 }
 
 

@@ -8,7 +8,7 @@ source('R/io.R')
 
 source('R/GATE_LIB.R')
 source('R/forced_concentrations.R')
-source('examples/pipeline/test/PIPELINE_LIB.R')
+source('R/PIPELINE_LIB.R')
 ## ================================================================
 ## A 3-deep pipeline -- READ / COMPUTE / WRITE -- as three ordinary,
 ## non-composable sequential reactions, each gated to its own phase
