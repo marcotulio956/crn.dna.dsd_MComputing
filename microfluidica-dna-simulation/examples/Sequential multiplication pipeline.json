@@ -1,0 +1,57 @@
+{
+  "schema_version": 2,
+  "name": "Sequential multiplication pipeline",
+  "nodes": [
+    {"id": "n-a", "name": "Input A", "x": 0.0001, "y": 0.0001, "sink": false, "ground": false},
+    {"id": "n-f", "name": "Input Fuel", "x": 0.0001, "y": 0.0003, "sink": false, "ground": false},
+    {"id": "n-m", "name": "Reaction chamber", "x": 0.002, "y": 0.0002, "sink": false, "ground": false},
+    {"id": "n-out", "name": "Output", "x": 0.004, "y": 0.0002, "sink": true, "ground": true}
+  ],
+  "channels": [
+    {"id": "c-a", "source": "n-a", "target": "n-m", "width": 0.00003, "height": 0.00005},
+    {"id": "c-f", "source": "n-f", "target": "n-m", "width": 0.00003, "height": 0.00005},
+    {"id": "c-out", "source": "n-m", "target": "n-out", "width": 0.00003, "height": 0.00005}
+  ],
+  "pumps": [
+    {"id": "p-a", "source": "n-out", "target": "n-a", "kind": "flow", "value": 1.5e-16},
+    {"id": "p-f", "source": "n-out", "target": "n-f", "kind": "flow", "value": 1.5e-16}
+  ],
+  "species": [
+    {"id": "s-a", "name": "A", "color": "#2dd4bf", "visible": true},
+    {"id": "s-b", "name": "B", "color": "#a78bfa", "visible": true},
+    {"id": "s-fuel", "name": "Fuel", "color": "#fb923c", "visible": true},
+    {"id": "s-output", "name": "Output", "color": "#38bdf8", "visible": true},
+    {"id": "s-waste", "name": "Waste", "color": "#fb7185", "visible": true}
+  ],
+  "reactions": [
+    {"id": "r-ab", "reactants": ["s-a", "s-b"], "products": ["s-waste"], "rate": 0.0028, "reverse_rate": null},
+    {"id": "r-af", "reactants": ["s-a", "s-fuel"], "products": ["s-output"], "rate": 0.0015, "reverse_rate": null},
+    {"id": "r-bf", "reactants": ["s-b", "s-fuel"], "products": ["s-output"], "rate": 0.0015, "reverse_rate": null}
+  ],
+  "injections": [
+    {"id": "d-a", "name": "Signal droplet", "channel": "c-a", "time": 0.1, "position": 0.25, "volume": 2.25e-13, "concentrations": {"s-a": 10, "s-b": 0, "s-fuel": 0, "s-output": 0, "s-waste": 0}},
+    {"id": "d-f", "name": "Fuel droplet", "channel": "c-f", "time": 0.1, "position": 0.25, "volume": 6.75e-13, "concentrations": {"s-a": 0, "s-b": 4, "s-fuel": 8, "s-output": 0, "s-waste": 0}}
+  ],
+  "annotations": [],
+  "settings": {
+    "mixing": "physical",
+    "continuous": {"density": 1000, "viscosity": 0.001},
+    "dispersed": {"density": 1000, "viscosity": 0.003},
+    "sample_count": 501,
+    "rtol": 1e-8,
+    "atol": 1e-10,
+    "timeout": 180,
+    "engine": "desolve",
+    "stochastic": false,
+    "dna": true,
+    "volume": 100,
+    "seed": 1234,
+    "forcing": {"name": "step_input", "species": "s-fuel", "params": {"time": 2, "amplitude": 2}},
+    "timing_enabled": true,
+    "timing_tolerance_percent": 1,
+    "timing_stable_samples": 5,
+    "timing_step": 0.1,
+    "timing_max_time": 100
+  },
+  "provenance": {}
+}

@@ -1,0 +1,121 @@
+{
+  "tableData": [
+    {
+      "id": 1,
+      "name": "Droplet 1",
+      "volume": "4.5e-13",
+      "pump": "Start",
+      "concentration": [
+        null,
+        "2",
+        "1",
+        "0",
+        "10"
+      ]
+    }
+  ],
+  "speciesData": [
+    {
+      "id": 1,
+      "name": "A",
+      "showInResults": true
+    },
+    {
+      "id": 2,
+      "name": "B",
+      "showInResults": true
+    },
+    {
+      "id": 3,
+      "name": "C",
+      "showInResults": true
+    },
+    {
+      "id": 4,
+      "name": "F",
+      "showInResults": false
+    }
+  ],
+  "reactionData": [
+    {
+      "id": 1,
+      "reaction": "Reaction 1",
+      "reactants": [
+        "A",
+        "F"
+      ],
+      "products": [
+        "C"
+      ],
+      "formattedReaction": "A + F -> C",
+      "rates": 0.0028
+    },
+    {
+      "id": 2,
+      "reaction": "Reaction 2",
+      "reactants": [
+        "B",
+        "F"
+      ],
+      "products": [
+        "C"
+      ],
+      "rates": 0.0028,
+      "formattedReaction": "B + F -> C"
+    }
+  ],
+  "concentrations": [
+    {},
+    {
+      "0": "2"
+    },
+    {
+      "0": "1"
+    },
+    {
+      "0": "0"
+    },
+    {
+      "0": "1",
+      "1": "0"
+    }
+  ],
+  "reactants": [
+    "B",
+    "F"
+  ],
+  "products": [
+    "C"
+  ],
+  "numReactants": 2,
+  "numProducts": 1,
+  "nodes": [
+    {
+      "x": "100",
+      "y": "200",
+      "name": "Start"
+    },
+    {
+      "x": "300",
+      "y": "200",
+      "name": "End",
+      "isSink": true
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "x": "100",
+        "y": "200",
+        "name": "Start"
+      },
+      "to": {
+        "x": "300",
+        "y": "200",
+        "name": "End",
+        "isSink": true
+      },
+      "height": 5
+    }
+  ]
+}

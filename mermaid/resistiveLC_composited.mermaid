@@ -1,0 +1,71 @@
+flowchart LR
+    %% =========================================================
+    %% STYLES
+    %% =========================================================
+    classDef block fill:#ffffff,stroke:#000000,stroke-width:2px;
+    classDef signal fill:#ffffff,stroke:#000000,stroke-width:0px;
+
+    %% =========================================================
+    %% INPUT & FEEDBACK SUBTRACTION
+    %% =========================================================
+    Vin["$$v_{\mathrm{in}}^{\pm}$$"]
+    VC_FB["$$v_C^{\pm}$$"]
+
+    %% Implemented via Make_Add3In (crossing the positive/negative rails)
+    ADD_VRL["$$v_{RL}^{\pm} = v_{\mathrm{in}}^{\pm} - v_C^{\pm}$$"]
+
+    %% =========================================================
+    %% RL COMPOSITE BLOCK (Make_Circuit_RL2)
+    %% =========================================================
+    subgraph RL_BLOCK["$$\text{RL Composite Block}$$"]
+        direction LR
+        VRL["$$v_{RL}^{\pm}$$"]
+        R_L["$$\times R$$"]
+        SUB_L["$$v_L^{\pm}=v_{RL}^{\pm}-v_R^{\pm}$$"]
+        L_INV["$$\displaystyle\times \frac{1}{L}$$"]
+        INT_L["$$\displaystyle\int dt$$"]
+        I_SERIES["$$i_{\mathrm{series}}^{\pm}$$"]
+
+        VRL --> SUB_L
+        SUB_L -->|"$$v_L^{\pm}$$"| L_INV
+        L_INV -->|"$$\displaystyle\frac{di_{\mathrm{series}}^{\pm}}{dt}$$"| INT_L
+        INT_L -->|"$$i_{\mathrm{series}}^{\pm}$$"| I_SERIES
+        
+        I_SERIES -->|"$$i_{\mathrm{series}}^{\pm}$$"| R_L
+        R_L -->|"$$v_R^{\pm}=R\,i_{\mathrm{series}}^{\pm}$$"| SUB_L
+    end
+
+    %% =========================================================
+    %% CAPACITOR SUBSYSTEM (Multiplier + Integrator)
+    %% =========================================================
+    subgraph C_BLOCK["$$\text{Capacitor Integration}$$"]
+        direction LR
+        %% Implemented via Make_Mul2In_Wang
+        MUL_C["$$\displaystyle\times \frac{1}{C}$$"]
+        
+        %% Implemented via Make_Integrator_OishiYordanov
+        INT_C["$$\displaystyle\int dt$$"]
+    end
+
+    %% =========================================================
+    %% GLOBAL ROUTING
+    %% =========================================================
+    
+    %% Voltage Subtraction
+    Vin -->|"$$v_{\mathrm{in}}^{\pm}$$"| ADD_VRL
+    VC_FB -->|"$$v_C^{\pm}$$"| ADD_VRL
+    ADD_VRL -->|"$$v_{RL}^{\pm}$$"| VRL
+
+    %% Current through Capacitor
+    I_SERIES -->|"$$i_{\mathrm{series}}^{\pm}$$"| MUL_C
+    MUL_C -->|"$$\displaystyle\frac{dv_C^{\pm}}{dt}=\frac{1}{C}i_{\mathrm{series}}^{\pm}$$"| INT_C
+    INT_C -->|"$$v_C^{\pm}$$"| VC_FB
+
+
+    %% =========================================================
+    %% ASSIGN CLASSES
+    %% =========================================================
+    class ADD_VRL,R_L,SUB_L,L_INV,INT_L,MUL_C,INT_C block;
+    class Vin,VRL,I_SERIES,VC_FB signal;
+    style RL_BLOCK fill:transparent,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
+    style C_BLOCK fill:transparent,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;

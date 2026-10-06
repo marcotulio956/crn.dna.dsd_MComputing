@@ -1,0 +1,3 @@
+CONTAINER ID   IMAGE            COMMAND                  CREATED        STATUS          PORTS                                         NAMES
+82cfb242652f   fluidna-app:v2   "python3 -m uvicorn …"   20 hours ago   Up 52 minutes   0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp   microfluidica-dna-simulation-microfluidica-app-1
+7c9a606073c9   dnar-dev         "bash -lc 'tail -f /…"   20 hours ago   Up 50 minutes                                                 microfluidica-dna-simulation-dnar-dev-1

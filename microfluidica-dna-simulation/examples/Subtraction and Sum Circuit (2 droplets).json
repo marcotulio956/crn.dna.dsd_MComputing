@@ -1,0 +1,178 @@
+{
+  "tableData": [
+    {
+      "id": 1,
+      "name": "Droplet 1",
+      "volume": 0,
+      "pump": "Goticula 1",
+      "concentration": [
+        null,
+        "4",
+        "4"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Droplet 2",
+      "volume": 0,
+      "pump": "Goticula 2",
+      "concentration": [
+        null,
+        null,
+        null,
+        "2",
+        "4"
+      ]
+    }
+  ],
+  "speciesData": [
+    {
+      "id": 1,
+      "name": "InputA"
+    },
+    {
+      "id": 2,
+      "name": "InputB"
+    },
+    {
+      "id": 3,
+      "name": "InputC"
+    },
+    {
+      "id": 4,
+      "name": "Fuel"
+    },
+    {
+      "id": 5,
+      "name": "Output"
+    },
+    {
+      "id": 6,
+      "name": "Waste"
+    }
+  ],
+  "reactionData": [
+    {
+      "id": 1,
+      "reaction": "Reaction 1",
+      "reactants": [
+        "InputA",
+        "InputB"
+      ],
+      "products": [
+        "Waste"
+      ],
+      "formattedReaction": "InputA + InputB -> Waste",
+      "rates": 0.0028
+    },
+    {
+      "id": 2,
+      "reaction": "Reaction 2",
+      "reactants": [
+        "InputA",
+        "Fuel"
+      ],
+      "products": [
+        "Output"
+      ],
+      "formattedReaction": "InputA + Fuel -> Output",
+      "rates": 0.0028
+    },
+    {
+      "id": 3,
+      "reaction": "Reaction 3",
+      "reactants": [
+        "InputC",
+        "Fuel"
+      ],
+      "products": [
+        "Output"
+      ],
+      "formattedReaction": "InputC + Fuel -> Output",
+      "rates": 0.0028
+    }
+  ],
+  "concentrations": [
+    {},
+    {
+      "0": "4"
+    },
+    {
+      "0": "4"
+    }
+  ],
+  "reactants": [
+    "InputA",
+    "Fuel"
+  ],
+  "products": [
+    "Output"
+  ],
+  "numReactants": 2,
+  "numProducts": 1,
+  "nodes": [
+    {
+      "x": "200",
+      "y": "250",
+      "name": "Goticula 1",
+      "isSink": false
+    },
+    {
+      "x": "200",
+      "y": "450",
+      "name": "Goticula 2"
+    },
+    {
+      "x": "200",
+      "y": "350",
+      "name": "Mistura"
+    },
+    {
+      "x": "600",
+      "y": "350",
+      "name": "Sink",
+      "isSink": true
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "x": "200",
+        "y": "450",
+        "name": "Goticula 2"
+      },
+      "to": {
+        "x": "200",
+        "y": "350",
+        "name": "Mistura"
+      },
+      "height": 5
+    },
+    {
+      "from": {
+        "x": "200",
+        "y": "250",
+        "name": "Goticula 1"
+      },
+      "to": {
+        "x": "200",
+        "y": "350",
+        "name": "Mistura"
+      },
+      "height": "5"
+    },
+    {
+      "from": {
+        "x": "200",
+        "y": "350",
+        "name": "Mistura"
+      },
+      "to": {
+        "x": "600",
+        "y": "350",
+        "name": "Sink"
+      },
+      "height": 5
+    }
+  ]
+}

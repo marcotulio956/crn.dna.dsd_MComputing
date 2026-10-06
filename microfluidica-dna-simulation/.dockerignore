@@ -1,0 +1,62 @@
+# Git
+.git
+.gitignore
+README.md
+
+# Documentation
+*.md
+DEPLOYMENT.md
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node modules (will be built in container)
+frontend/new-interface/node_modules/
+frontend/studio/node_modules/
+.venv/
+.runs/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# R cache
+.Rhistory
+.RData
+
+# Test files
+test_*.R
+Dockerfile.test
+
+# Build artifacts
+*.rds
+*.pdf
+plot.png
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Deployment scripts
+deploy.sh
+railway.json
+
+# Images (not needed in container)
+images/
+
+# Python examples (keep only essential ones)
+Python/exemplo_*.json

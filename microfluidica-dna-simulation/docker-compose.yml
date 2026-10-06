@@ -1,0 +1,36 @@
+services:
+  dnar-dev:
+    image: dnar-dev
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    command: ["bash", "-lc", "tail -f /dev/null"]
+    volumes:
+      - ../:/workspaces/dnar
+
+  microfluidica-app:
+    image: fluidna-app:v2
+    user: root
+    build:
+      context: ..
+      dockerfile: microfluidica-dna-simulation/Dockerfile.app
+    depends_on:
+      - fluidna-engine
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - FLUIDNA_ENGINE_IMAGE=fluidna-engine:v2
+      - FLUIDNA_RUNS=/app/.runs
+      - FLUIDNA_HOST_RUNS=/home/mark/dnar/microfluidica-dna-simulation/.runs
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./.runs:/app/.runs
+    restart: unless-stopped
+
+  fluidna-engine:
+    image: fluidna-engine:v2
+    build:
+      context: ..
+      dockerfile: microfluidica-dna-simulation/Dockerfile.engine
+

@@ -1,0 +1,70 @@
+flowchart TB
+
+
+    %% =========================================================
+    %% CAPACITOR PATH
+    %% =========================================================
+
+    subgraph CAP["$$\text{Pure\ Capacitor}$$"]
+        direction LR
+
+        Vin1["$$v_{\mathrm{in}}^{\pm}$$"]
+
+        
+        DC["$$\displaystyle\frac{d}{dt}$$"]
+
+        C["$$\times C$$"]
+
+        IC["$$i_C^{\pm}$$"]
+
+        Vin1 --> DC
+
+        DC -->|"$$\displaystyle\frac{dv_{\mathrm{in}}^{\pm}}{dt}$$"| C
+
+        C -->|"$$\displaystyle i_C^{\pm}=C\frac{dv_{\mathrm{in}}^{\pm}}{dt}$$"| IC
+    end
+
+
+    %% =========================================================
+    %% INDUCTOR PATH
+    %% =========================================================
+
+    subgraph IND["$$\text{Pure\ Inductor}$$"]
+        direction LR
+        Vin2["$$v_{\mathrm{in}}^{\pm}$$"]
+
+        INT["$$\displaystyle\int dt$$"]
+
+        LINV["$$\displaystyle\times\frac{1}{L}$$"]
+
+        IL["$$i_L^{\pm}$$"]
+
+        Vin2 --> INT
+
+        INT -->|"$$\displaystyle \lambda^{\pm}=\int v_{\mathrm{in}}^{\pm}\,dt$$"| LINV
+        LINV -->|"$$\displaystyle i_L^{\pm}=\frac{\lambda^{\pm}}{L}$$"| IL
+    end
+
+
+    %% =========================================================
+    %% SHARED VOLTAGE INPUT
+    %% =========================================================
+
+    
+    
+
+
+    %% =========================================================
+    %% CLASSES
+    %% =========================================================
+
+    classDef block fill:#ffffff,stroke:#000000,stroke-width:2px;
+    classDef signal fill:#ffffff,stroke:#000000,stroke-width:0px;
+
+
+    class DC,INT,C,LINV block;
+    class Vin1,Vin2,IC,IL signal;
+
+    style IND fill:transparent,stroke:#333,stroke-width:0px
+    style CAP fill:transparent,stroke:#333,stroke-width:0px
+    IND ~~~ CAP

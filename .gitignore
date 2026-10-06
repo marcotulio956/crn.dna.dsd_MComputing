@@ -1,0 +1,17 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.playground
+.rd
+man
+*.raw
+*.log
+*.net
+*.csv
+factorial_design/data
+matlab/data
+.localdata
+.venv
+.vscode
+.Rbuildignore

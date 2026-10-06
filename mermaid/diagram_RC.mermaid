@@ -1,0 +1,30 @@
+flowchart LR
+    classDef block fill:#ffffff,stroke:#000000,stroke-width:2px;
+    classDef signal fill:#ffffff,stroke:#000000,stroke-width:0px;
+
+    Vin["$$v_{\mathrm{in}}^{\pm}$$"]
+    
+    SUB_VR["$$v_R^{\pm} = v_{\mathrm{in}}^{\pm} - v_C^{\pm}$$"]
+    MUL_1oR["$$\displaystyle \times \frac{1}{R}$$"]
+    I_OUT["$$i^{\pm}$$"]
+    
+    MUL_1oC["$$\displaystyle \times \frac{1}{C}$$"]
+    DVC_DT["$$\displaystyle \frac{dv_C^{\pm}}{dt}$$"]
+    
+    INT_VC["$$\displaystyle \int dt$$"]
+    VC_OUT["$$v_C^{\pm}$$"]
+
+    Vin -->|"$$v_{\mathrm{in}}^{\pm}$$"| SUB_VR
+    VC_OUT --> SUB_VR
+    
+    SUB_VR -->|"$$v_R^{\pm}$$"| MUL_1oR
+    MUL_1oR -->|"$$i^{\pm}$$"| I_OUT
+    
+    I_OUT -->|"$$i^{\pm}$$"| MUL_1oC
+    MUL_1oC -->|"$$\displaystyle \frac{dv_C^{\pm}}{dt}$$"| DVC_DT
+    
+    DVC_DT --> INT_VC
+    INT_VC -->|"$$v_C^{\pm}$$"| VC_OUT
+
+    class SUB_VR,MUL_1oR,MUL_1oC,INT_VC block;
+    class Vin,I_OUT,DVC_DT,VC_OUT signal;

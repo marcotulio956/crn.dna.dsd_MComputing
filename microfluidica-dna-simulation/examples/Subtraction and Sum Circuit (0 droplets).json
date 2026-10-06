@@ -1,0 +1,138 @@
+{
+  "tableData": [
+    {
+      "id": 1,
+      "name": "Droplet 1",
+      "volume": "4.5e-13",
+      "pump": "Start",
+      "concentration": [
+        null,
+        "4",
+        "4",
+        "2",
+        "10"
+      ]
+    }
+  ],
+  "speciesData": [
+    {
+      "id": 1,
+      "name": "A"
+    },
+    {
+      "id": 2,
+      "name": "B"
+    },
+    {
+      "id": 3,
+      "name": "C"
+    },
+    {
+      "id": 4,
+      "name": "F"
+    },
+    {
+      "id": 5,
+      "name": "Waste"
+    },
+    {
+      "id": 6,
+      "name": "Output"
+    }
+  ],
+  "reactionData": [
+    {
+      "id": 1,
+      "reaction": "Reaction 1",
+      "reactants": [
+        "A",
+        "B"
+      ],
+      "products": [
+        "Waste"
+      ],
+      "formattedReaction": "A + B -> Waste",
+      "rates": 0.0028
+    },
+    {
+      "id": 2,
+      "reaction": "Reaction 2",
+      "reactants": [
+        "A",
+        "F"
+      ],
+      "products": [
+        "Output"
+      ],
+      "formattedReaction": "A + F -> Output",
+      "rates": 0.0028
+    },
+    {
+      "id": 3,
+      "reaction": "Reaction 3",
+      "reactants": [
+        "C",
+        "F"
+      ],
+      "products": [
+        "Output"
+      ],
+      "formattedReaction": "C + F -> Output",
+      "rates": 0.0028
+    }
+  ],
+  "concentrations": [
+    {},
+    {
+      "0": "4"
+    },
+    {
+      "0": "4"
+    },
+    {
+      "0": "2"
+    },
+    {
+      "0": "1",
+      "1": "0"
+    }
+  ],
+  "reactants": [
+    "C",
+    "F"
+  ],
+  "products": [
+    "Output"
+  ],
+  "numReactants": 2,
+  "numProducts": 1,
+  "nodes": [
+    {
+      "x": "100",
+      "y": "200",
+      "name": "Start"
+    },
+    {
+      "x": "200",
+      "y": "200",
+      "name": "End",
+      "isSink": true
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "x": "100",
+        "y": "200",
+        "name": "Start"
+      },
+      "to": {
+        "x": "200",
+        "y": "200",
+        "name": "End",
+        "isSink": true
+      },
+      "height": 5
+    }
+  ]
+}
