@@ -63,7 +63,7 @@ passos para ampliar a compatibilidade com os níveis e versões do formato.
    `1e-4` relativo), documentando casos que falharem por diferenças de solver,
    unidades ou funcionalidades ainda não implementadas.
 
-## Entrega da turma
+## _Deliverables_
 
 Entregar:
 

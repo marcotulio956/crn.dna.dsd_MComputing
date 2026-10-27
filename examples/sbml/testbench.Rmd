@@ -1,0 +1,69 @@
+---
+title: "Testbench de suporte SBML no DNAr"
+output: html_notebook
+---
+
+Este notebook demonstra a validacao, importacao, simulacao e comparacao de um
+caso SBML. A execucao deve ser feita a partir da raiz do repositorio, dentro
+do container de desenvolvimento.
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = TRUE)
+source("examples/sbml/testbench.R")
+```
+
+## Disponibilidade do libSBML
+
+```{r availability}
+sbml_available()
+```
+
+## Validacao e importacao
+
+```{r import}
+case_file <- "examples/sbml/cases/00028.xml"
+validation <- validate_sbml(case_file)
+validation
+```
+
+```{r model}
+model <- read_sbml_to_dnar(case_file)
+list(
+    species = model$species,
+    initial_concentrations = model$ci,
+    reactions = model$reactions,
+    rates = model$ki,
+    kinetic_laws = model$kinetic_laws
+)
+```
+
+## Execucao e comparacao com referencia
+
+O caso isolado fornecido no repositorio nao possui os arquivos de configuracao
+e referencia da SBML Test Suite. Portanto, o exemplo abaixo executa a mesma
+rotina quando esses arquivos estiverem disponíveis no diretório indicado.
+
+```{r one-case}
+suite_case_dir <- "examples/sbml/cases"
+case_result <- run_sbml_case(
+    case_id = "00028",
+    base_dir = suite_case_dir
+)
+case_result$status
+```
+
+Para uma cópia local da SBML Test Suite, altere `suite_case_dir` e execute:
+
+```{r suite}
+suite <- run_sbml_cases(
+    base_dir = suite_case_dir,
+    absolute_tolerance = 1e-6,
+    relative_tolerance = 1e-4
+)
+suite$summary
+```
+
+Os campos `max_absolute_error` e `max_relative_error` devem ser comparados
+com as tolerâncias definidas. Casos sem `settings` ou arquivo de referência
+são marcados como `nao suportado`; erros de importação ou simulação aparecem
+como `falhou`.
