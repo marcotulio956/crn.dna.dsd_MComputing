@@ -25,6 +25,10 @@ export(save_dsd_script)
 export(save_reactions_txt)
 export(update_crn_4domain)
 export(update_neuron_input_hje)
+export(sbml_available)
+export(validate_sbml)
+export(read_sbml_to_dnar)
+export(sbml_to_dnar)
 
 # DNAr Logic
 export(circuit_add_gate)

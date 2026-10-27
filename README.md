@@ -55,11 +55,27 @@ Main functions and their description
 | Analyze the Ordinary Differential Equations (ODEs) used to simulate the CRN                                     | `analyze_behavior()` and `eval_derivative()`                     |
 | Compare the behavior of species. Useful to track the changes of the CRN’s behavior after a change of parameters | `compare_behaviors_nrmse()`                                      |
 | See, export and import the behavior of a simulated CRN                                                          | `plot_behavior()`,  `save_behavior_csv()`, `load_behavior_csv()` |
+| Import and validate SBML models                                                                                 | `read_sbml_to_dnar()`, `validate_sbml()`                        |
 | Export the DNA-based CRN generated to the Microsoft Visual DSD (for a further in-depth simulation)              | `save_dsd_script()`                                              |
 
 All the functions are documented and it can be accessed by typing 
 `?<function-name>` in the R console (after loading the package). 
 Example: `?react`.
+
+### SBML support
+
+The development container installs libSBML through the Python `libsbml`
+bindings. Use the container instructions below, then import an SBML model as
+a DNAr-compatible CRN:
+
+```r
+model <- read_sbml_to_dnar("examples/sbml/cases/00028.xml")
+validation <- validate_sbml("examples/sbml/cases/00028.xml")
+```
+
+Mass-action kinetic laws are converted to numeric `ki` values. Other kinetic
+laws are retained in `model$kinetic_laws` and use their initial-state rate as
+a compatibility fallback for DNAr's mass-action reactor.
 
 ## Who Should Use It
 

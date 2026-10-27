@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libharfbuzz-dev \
     libfreetype6-dev \
     zlib1g-dev \
+    python3-pip \
  && rm -rf /var/lib/apt/lists/*
 
 # --------------------------------------------------------------------
@@ -62,6 +63,9 @@ RUN install2.r --error --skipinstalled \
     gganimate \
     gifski \
     GillespieSSA2
+
+# libSBML is used by the R SBML bridge in R/sbml.R.
+RUN python3 -m pip install --no-cache-dir python-libsbml
 
 # --------------------------------------------------------------------
 # Install updated JuliaCall from GitHub (Julia 1.12+ compatibility)

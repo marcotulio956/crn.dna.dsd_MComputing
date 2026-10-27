@@ -1,173 +1,357 @@
-library(xml2)
-
-# install.packages(c("V8", "xml2"))
-
-# if (!requireNamespace("remotes", quietly = TRUE)) install.packages("remotes")
-# remotes::install_github("tomicapretto/latex2r")
-
-
-read_sbml_to_dnar <- function(xml_file_path) {
-  doc <- read_xml(xml_file_path)
-  
-  # Dynamically extract the default namespace (handles both Level 2 and Level 3)
-  ns <- xml_ns(doc) 
-  if (length(ns) == 0 || !("d1" %in% names(ns))) {
-    # Fallback mapping if xml_ns() assigns a different prefix
-    ns <- xml_ns_rename(ns, names(ns)[1], "d1") 
-  }
-  
-  # ---------------------------------------------------------
-  # 1. Parse Species and Initial Concentrations
-  # ---------------------------------------------------------
-  species_nodes <- xml_find_all(doc, ".//d1:species", ns)
-  species_ids <- xml_attr(species_nodes, "id")
-  
-  # Attempt to read amounts, fallback to concentrations, default to 0
-  ci <- as.numeric(xml_attr(species_nodes, "initialAmount"))
-  ci_conc <- as.numeric(xml_attr(species_nodes, "initialConcentration"))
-  
-  na_amounts <- is.na(ci)
-  ci[na_amounts] <- ci_conc[na_amounts]
-  ci[is.na(ci)] <- 0.0 
-  
-  # Name the vector to align seamlessly with react4's y0 mapping
-  names(ci) <- species_ids
-  
-  # ---------------------------------------------------------
-  # 2. Parse Reactions, Stoichiometry, and Kinetics
-  # ---------------------------------------------------------
-  reaction_nodes <- xml_find_all(doc, ".//d1:reaction", ns)
-  reactions <- character(length(reaction_nodes))
-  ki <- numeric(length(reaction_nodes))
-  
-  for (i in seq_along(reaction_nodes)) {
-    node <- reaction_nodes[[i]]
-    
-    # Helper to format stoichiometric strings (e.g., "2X")
-    build_side <- function(ref_nodes) {
-      if (length(ref_nodes) == 0) return("0")
-      
-      parts <- sapply(ref_nodes, function(n) {
-        stoich <- xml_attr(n, "stoichiometry")
-        if (is.na(stoich) || stoich == "1" || stoich == "1.0") {
-          stoich_str <- ""
-        } else {
-          stoich_str <- stoich
-        }
-        paste0(stoich_str, xml_attr(n, "species"))
-      })
-      paste(parts, collapse = " + ")
-    }
-    
-    reactants <- xml_find_all(node, ".//d1:listOfReactants/d1:speciesReference", ns)
-    products <- xml_find_all(node, ".//d1:listOfProducts/d1:speciesReference", ns)
-    
-    r_str <- build_side(reactants)
-    p_str <- build_side(products)
-    reactions[i] <- paste(r_str, "->", p_str)
-    
-    # Extract rate constant (k). Targets standard mass-action parameter definitions.
-    rate_node <- xml_find_first(
-      node, 
-      ".//d1:kineticLaw//d1:localParameter[@id='k'] | .//d1:kineticLaw//d1:localParameter | .//d1:kineticLaw//d1:parameter", 
-      ns
-    )
-    
-    if (!is.na(rate_node)) {
-      ki[i] <- as.numeric(xml_attr(rate_node, "value"))
-    } else {
-      warning(sprintf("No kinetic parameter found for reaction %s. Defaulting to 1.0", xml_attr(node, "id")))
-      ki[i] <- 1.0 
-    }
-  }
-  
-  # ---------------------------------------------------------
-  # 3. Construct DNAr Object
-  # ---------------------------------------------------------
-  crn <- list(
-    species = species_ids,
-    ci = ci,
-    reactions = reactions,
-    ki = ki
-  )
-  
-  return(crn)
+#' Check whether the libSBML bridge is available.
+#'
+#' The Docker development image installs libSBML through its Python bindings.
+#' Keeping the check here makes failures explicit for users running DNAr
+#' outside that image.
+#'
+#' @return A logical scalar.
+#' @export
+sbml_available <- function() {
+    nzchar(Sys.which("python3")) &&
+        isTRUE(system2(
+            "python3",
+            c("-c", shQuote("import libsbml")),
+            stdout = FALSE,
+            stderr = FALSE
+        ) == 0)
 }
 
+sbml_python_script <- function() {
+    script <- tempfile(fileext = ".py")
+    writeLines(c(
+        "import json",
+        "import sys",
+        "import libsbml",
+        "",
+        "path = sys.argv[1]",
+        "reader = libsbml.SBMLReader()",
+        "document = reader.readSBML(path)",
+        "model = document.getModel()",
+        "if model is None:",
+        "    raise RuntimeError('SBML document does not contain a model')",
+        "",
+        "def number(value):",
+        "    return None if value is None else float(value)",
+        "",
+        "compartments = {}",
+        "for i in range(model.getNumCompartments()):",
+        "    compartment = model.getCompartment(i)",
+        "    compartments[compartment.getId()] = number(compartment.getSize())",
+        "",
+        "parameters = {}",
+        "for i in range(model.getNumParameters()):",
+        "    parameter = model.getParameter(i)",
+        "    if parameter.isSetValue():",
+        "        parameters[parameter.getId()] = number(parameter.getValue())",
+        "",
+        "species = []",
+        "for i in range(model.getNumSpecies()):",
+        "    item = model.getSpecies(i)",
+        "    initial = None",
+        "    if item.isSetInitialConcentration():",
+        "        initial = number(item.getInitialConcentration())",
+        "    elif item.isSetInitialAmount():",
+        "        initial = number(item.getInitialAmount())",
+        "        size = compartments.get(item.getCompartment())",
+        "        if not item.getHasOnlySubstanceUnits() and size not in (None, 0):",
+        "            initial = initial / size",
+        "    if initial is None:",
+        "        initial = 0.0",
+        "    species.append({'id': item.getId(), 'initial': initial})",
+        "",
+        "reactions = []",
+        "for i in range(model.getNumReactions()):",
+        "    reaction = model.getReaction(i)",
+        "    reactants = []",
+        "    for j in range(reaction.getNumReactants()):",
+        "        ref = reaction.getReactant(j)",
+        "        reactants.append({'species': ref.getSpecies(), 'stoich': number(ref.getStoichiometry())})",
+        "    products = []",
+        "    for j in range(reaction.getNumProducts()):",
+        "        ref = reaction.getProduct(j)",
+        "        products.append({'species': ref.getSpecies(), 'stoich': number(ref.getStoichiometry())})",
+        "    formula = None",
+        "    local_parameters = {}",
+        "    law = reaction.getKineticLaw()",
+        "    if law is not None:",
+        "        formula = libsbml.formulaToL3String(law.getMath())",
+        "        for j in range(law.getNumLocalParameters()):",
+        "            parameter = law.getLocalParameter(j)",
+        "            if parameter.isSetValue():",
+        "                local_parameters[parameter.getId()] = number(parameter.getValue())",
+        "        for j in range(law.getNumParameters()):",
+        "            parameter = law.getParameter(j)",
+        "            if parameter.isSetValue():",
+        "                local_parameters[parameter.getId()] = number(parameter.getValue())",
+        "    reactions.append({'id': reaction.getId(), 'reversible': reaction.getReversible(),",
+        "                      'reactants': reactants,",
+        "                      'products': products, 'formula': formula,",
+        "                      'parameters': local_parameters})",
+        "",
+        "errors = []",
+        "warnings = []",
+        "for i in range(document.getNumErrors()):",
+        "    error = document.getError(i)",
+        "    entry = {'line': error.getLine(), 'message': error.getMessage()}",
+        "    if error.getSeverity() >= libsbml.LIBSBML_SEV_ERROR:",
+        "        errors.append(entry)",
+        "    else:",
+        "        warnings.append(entry)",
+        "",
+        "print(json.dumps({'species': species, 'parameters': parameters,",
+        "                   'reactions': reactions, 'errors': errors,",
+        "                   'warnings': warnings}))"
+    ), script)
+    script
+}
+
+sbml_run_bridge <- function(xml_file_path) {
+    if (!is.character(xml_file_path) || length(xml_file_path) != 1L ||
+        !nzchar(xml_file_path)) {
+        stop("'xml_file_path' must be a single non-empty path.")
+    }
+    if (!file.exists(xml_file_path)) {
+        stop("SBML file does not exist: ", xml_file_path)
+    }
+    if (!sbml_available()) {
+        stop(
+            "libSBML is unavailable. Install python-libsbml and ensure ",
+            "'python3' is on PATH."
+        )
+    }
+
+    script <- sbml_python_script()
+    on.exit(unlink(script), add = TRUE)
+    output <- system2(
+        "python3",
+        c(script, normalizePath(xml_file_path, mustWork = TRUE)),
+        stdout = TRUE,
+        stderr = TRUE
+    )
+    status <- attr(output, "status")
+    if (!is.null(status) && status != 0L) {
+        stop("libSBML could not read the file: ", paste(output, collapse = "\n"))
+    }
+    jsonlite::fromJSON(paste(output, collapse = ""), simplifyVector = FALSE)
+}
+
+#' Validate an SBML document using libSBML.
+#'
+#' @param xml_file_path Path to an SBML document.
+#' @return A list with `valid`, `errors`, and `warnings`.
+#' @export
+validate_sbml <- function(xml_file_path) {
+    parsed <- sbml_run_bridge(xml_file_path)
+    list(
+        valid = length(parsed$errors) == 0L,
+        errors = parsed$errors,
+        warnings = parsed$warnings
+    )
+}
+
+sbml_reaction_side <- function(references) {
+    if (length(references) == 0L) {
+        return("0")
+    }
+    parts <- vapply(references, function(reference) {
+        stoich <- as.numeric(reference$stoich)
+        coefficient <- if (isTRUE(all.equal(stoich, 1))) {
+            ""
+        } else {
+            format(stoich, trim = TRUE, scientific = FALSE)
+        }
+        paste0(coefficient, reference$species)
+    }, character(1))
+    paste(parts, collapse = " + ")
+}
+
+#' Read an SBML model into a DNAr CRN.
+#'
+#' Species initial amounts are converted to concentrations using their
+#' compartment size. Reactions with mass-action kinetic laws expose their
+#' constant in `ki`. Non-mass-action laws are reported in `kinetic_laws` and
+#' use their value at the initial state as a compatibility fallback.
+#'
+#' @param xml_file_path Path to an SBML document.
+#' @return A DNAr-compatible list containing `species`, `ci`, `reactions`,
+#'   `ki`, and SBML kinetic-law metadata.
+#' @export
+read_sbml_to_dnar <- function(xml_file_path) {
+    parsed <- sbml_run_bridge(xml_file_path)
+    if (length(parsed$errors) > 0L) {
+        messages <- vapply(parsed$errors, `[[`, character(1), "message")
+        stop("Invalid SBML: ", paste(messages, collapse = "; "))
+    }
+
+    species <- vapply(parsed$species, `[[`, character(1), "id")
+    ci <- setNames(
+        vapply(parsed$species, function(item) as.numeric(item$initial), numeric(1)),
+        species
+    )
+    global_parameters <- parsed$parameters
+
+    reactions <- vapply(parsed$reactions, function(reaction) {
+        paste(
+            sbml_reaction_side(reaction$reactants),
+            if (isTRUE(reaction$reversible)) "<->" else "->",
+            sbml_reaction_side(reaction$products)
+        )
+    }, character(1))
+
+    # A kinetic-law formula is mass action when it consists of a constant
+    # parameter multiplied by exactly the reactant powers.
+    ki <- vapply(parsed$reactions, function(reaction) {
+        formula <- reaction$formula
+        values <- c(global_parameters, reaction$parameters)
+        if (is.null(formula) || !nzchar(formula)) {
+            warning("Reaction '", reaction$id, "' has no kinetic law; using 1.")
+            return(1)
+        }
+        parameter_names <- names(values)
+        reactant_term <- paste(
+            vapply(reaction$reactants, function(ref) {
+                paste0(ref$species, "^", ref$stoich)
+            }, character(1)),
+            collapse = " * "
+        )
+        candidate <- formula
+        for (name in parameter_names) {
+            candidate <- gsub(
+                paste0("(?<![A-Za-z0-9_])", name, "(?![A-Za-z0-9_])"),
+                format(values[[name]], scientific = FALSE, trim = TRUE),
+                candidate,
+                perl = TRUE
+            )
+        }
+        candidate <- gsub("\\s+", "", candidate)
+        candidate <- gsub("\\^1(?:\\.0+)?", "", candidate)
+        species_names <- vapply(parsed$species, `[[`, character(1), "id")
+        residual <- formula
+        for (name in c(parameter_names, species_names)) {
+            residual <- gsub(
+                paste0("(?<![A-Za-z0-9_])", name, "(?![A-Za-z0-9_])"),
+                "",
+                residual,
+                perl = TRUE
+            )
+        }
+        residual <- gsub("\\s+", "", residual)
+        references_only_reactants <- all(vapply(
+            species_names,
+            function(name) {
+                !grepl(
+                    paste0("(?<![A-Za-z0-9_])", name, "(?![A-Za-z0-9_])"),
+                    formula,
+                    perl = TRUE
+                ) || any(vapply(
+                    reaction$reactants,
+                    function(ref) identical(ref$species, name),
+                    logical(1)
+                ))
+            },
+            logical(1)
+        ))
+        if (!grepl("[A-Za-z_]", residual) &&
+            !grepl("\\+", residual) &&
+            references_only_reactants) {
+            at_one <- candidate
+            for (name in species_names) {
+                at_one <- gsub(
+                    paste0("(?<![A-Za-z0-9_])", name, "(?![A-Za-z0-9_])"),
+                    "1",
+                    at_one,
+                    perl = TRUE
+                )
+            }
+            value <- suppressWarnings(eval(parse(text = at_one), envir = baseenv()))
+            if (is.numeric(value) && length(value) == 1L && is.finite(value)) {
+                return(as.numeric(value))
+            }
+        }
+        initial_values <- c(as.list(ci), as.list(values))
+        for (name in names(initial_values)) {
+            candidate <- gsub(
+                paste0("(?<![A-Za-z0-9_])", name, "(?![A-Za-z0-9_])"),
+                format(initial_values[[name]], scientific = FALSE, trim = TRUE),
+                candidate,
+                perl = TRUE
+            )
+        }
+        candidate <- gsub("\\bceil\\(", "ceiling(", candidate)
+        value <- suppressWarnings(eval(parse(text = candidate), envir = baseenv()))
+        if (!is.numeric(value) || length(value) != 1L || !is.finite(value)) {
+            warning("Could not reduce kinetic law for reaction '", reaction$id,
+                    "'; using 1.")
+            return(1)
+        }
+        warning("Reaction '", reaction$id,
+                "' is not mass action; ki uses its initial-state rate.")
+        as.numeric(value)
+    }, numeric(1))
+
+    structure(
+        list(
+            species = species,
+            ci = ci,
+            reactions = reactions,
+            ki = ki,
+            kinetic_laws = lapply(parsed$reactions, function(reaction) {
+                list(id = reaction$id, formula = reaction$formula,
+                     parameters = c(global_parameters, reaction$parameters))
+            })
+        ),
+        class = c("dnar_sbml", "list")
+    )
+}
+
+#' @rdname read_sbml_to_dnar
+#' @export
+sbml_to_dnar <- read_sbml_to_dnar
+
 convert__to_latex <- function(mathml_str) {
-  # 1. Ensure required packages are installed
-  if (!requireNamespace("V8", quietly = TRUE)) {
-    stop("The 'V8' package is required. Run install.packages('V8') first.")
-  }
-  if (!requireNamespace("xml2", quietly = TRUE)) {
-    stop("The 'xml2' package is required. Run install.packages('xml2') first.")
-  }
-  
-  # 2. Clean the input (remove extra whitespace/newlines that break JS strings)
-  clean_mathml <- as.character(xml2::read_xml(mathml_str))
-  clean_mathml <- gsub("\n", "", clean_mathml)
-  clean_mathml <- gsub("'", "\\'", clean_mathml, fixed = TRUE)
-  
-  # 3. Initialize V8 context
-  ctx <- V8::v8()
-  
-  # 4. Fetch and load the open-source mathml-to-latex JavaScript library
-  # We use a reliable UNPKG CDN link for the minified library
-  js_url <- "https://unpkg.com"
-  
-  tryCatch({
-    ctx$source(js_url)
-  }, error = function(e) {
-    stop("Failed to download the JavaScript converter library. Check your internet connection.")
-  })
-  
-  # 5. Assign the MathML string to the JS environment
-  ctx$assign("mml", clean_mathml)
-  
-  # 6. Execute the library conversion method
-  # The library registers a global window object or module exports depending on context.
-  # UNPKG bundles usually expose 'MathMLToLaTeX' or an export function directly.
-  latex_result <- tryCatch({
-    ctx$eval("MathMLToLaTeX.convert(mml)")
-  }, error = function(e) {
-    # Fallback syntax if the module structure varies across CDN versions
-    ctx$eval("typeof MathMLToLaTeX !== 'undefined' ? MathMLToLaTeX.convert(mml) : MathMLToLaTeX.default.convert(mml)")
-  })
-  
-  return(latex_result)
+    if (!requireNamespace("V8", quietly = TRUE)) {
+        stop("The 'V8' package is required. Run install.packages('V8') first.")
+    }
+    if (!requireNamespace("xml2", quietly = TRUE)) {
+        stop("The 'xml2' package is required. Run install.packages('xml2') first.")
+    }
+
+    clean_mathml <- as.character(xml2::read_xml(mathml_str))
+    clean_mathml <- gsub("\n", "", clean_mathml)
+    clean_mathml <- gsub("'", "\\'", clean_mathml, fixed = TRUE)
+    ctx <- V8::v8()
+    js_url <- "https://unpkg.com"
+    tryCatch({
+        ctx$source(js_url)
+    }, error = function(error) {
+        stop("Failed to download the JavaScript converter library. Check your internet connection.")
+    })
+    ctx$assign("mml", clean_mathml)
+    tryCatch({
+        ctx$eval("MathMLToLaTeX.convert(mml)")
+    }, error = function(error) {
+        ctx$eval("typeof MathMLToLaTeX !== 'undefined' ? MathMLToLaTeX.convert(mml) : MathMLToLaTeX.default.convert(mml)")
+    })
 }
 
 solve_latex_equation <- function(latex_str, ...) {
-  if (!requireNamespace("latex2r", quietly = TRUE)) {
-    stop("The 'latex2r' package is required.")
-  }
-  
-  # 1. Clean the LaTeX string (remove standard equation shells like $ or \[, if any)
-  clean_latex <- gsub("^\\$|\\$$|^\\\\\\[|\\\\\\]$", "", trimws(latex_str))
-  
-  # If the string contains an "=", split it to only take the right side for evaluation
-  if (grepl("=", clean_latex)) {
-    clean_latex <- unlist(strsplit(clean_latex, "="))[2]
-  }
-
-  # 2. Convert the LaTeX math formula directly into an executable R function
-  # latex2fun automatically maps variables like x, t, or time as function arguments
-  r_math_function <- latex2r::latex2fun(clean_latex)
-  
-  # 3. Execute the newly built function with the variables passed by the user
-  result <- tryCatch({
-    r_math_function(...)
-  }, error = function(e) {
-    stop(paste("Evaluation failed. Make sure you passed all necessary variable names correctly.\nError:", e$message))
-  })
-  
-  return(result)
+    if (!requireNamespace("latex2r", quietly = TRUE)) {
+        stop("The 'latex2r' package is required.")
+    }
+    clean_latex <- gsub("^\\$|\\$$|^\\\\\\[|\\\\\\]$", "", trimws(latex_str))
+    if (grepl("=", clean_latex)) {
+        clean_latex <- unlist(strsplit(clean_latex, "="))[[2L]]
+    }
+    r_math_function <- latex2r::latex2fun(clean_latex)
+    tryCatch(
+        r_math_function(...),
+        error = function(error) {
+            stop(
+                paste(
+                    "Evaluation failed. Make sure you passed all necessary variable names correctly.",
+                    "\nError:", error$message
+                )
+            )
+        }
+    )
 }
-
-# latex_string <- convert_mathml_to_latex(mathml_input)
-# # Internal result: "y=5\\cdot time^{2}+3\\cdot time"
-
-# # 3. Pass that string directly into our solver and define the 'time' argument
-# solved_value <- solve_latex_equation(latex_string, time = 4)
-
-# print(solved_value)

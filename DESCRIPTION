@@ -25,7 +25,8 @@ Imports:
     assertthat (>= 0.2.0),
     magrittr (>= 1.5),
     Rdpack (>= 0.4.20),
-    GillespieSSA2 (>= 0.1)
+    GillespieSSA2 (>= 0.1),
+    jsonlite
 RoxygenNote: 6.0.1
 RdMacros: Rdpack
 Roxygen: list(markdown = TRUE)
