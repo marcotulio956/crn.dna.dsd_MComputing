@@ -20,6 +20,7 @@ sbml_python_script <- function() {
     script <- tempfile(fileext = ".py")
     writeLines(c(
         "import json",
+        "import math",
         "import sys",
         "import libsbml",
         "",
@@ -31,12 +32,68 @@ sbml_python_script <- function() {
         "    raise RuntimeError('SBML document does not contain a model')",
         "",
         "def number(value):",
-        "    return None if value is None else float(value)",
+        "    if value is None:",
+        "        return None",
+        "    value = float(value)",
+        "    if math.isnan(value):",
+        "        return 'NaN'",
+        "    if math.isinf(value):",
+        "        return 'Inf' if value > 0 else '-Inf'",
+        "    return value",
+        "",
+        "def optional_id(obj):",
+        "    return obj.getId() if obj.isSetId() else None",
+        "",
+        "RELATIONAL = {libsbml.AST_RELATIONAL_LT, libsbml.AST_RELATIONAL_LEQ,",
+        "              libsbml.AST_RELATIONAL_GT, libsbml.AST_RELATIONAL_GEQ,",
+        "              libsbml.AST_RELATIONAL_EQ}",
+        "",
+        "def normalize_math(node):",
+        "    # MathML relationals are n-ary: lt(a, b, c) means a < b && b < c.",
+        "    # formulaToL3String writes 'a < b < c', which is invalid R. Expand to",
+        "    # an explicit and() of pairwise comparisons; with fewer than two",
+        "    # arguments the relation is vacuously true.",
+        "    node = node.deepCopy()",
+        "    stack = [node]",
+        "    while stack:",
+        "        current = stack.pop()",
+        "        for k in range(current.getNumChildren()):",
+        "            child = current.getChild(k)",
+        "            if child.getType() in RELATIONAL and child.getNumChildren() != 2:",
+        "                n = child.getNumChildren()",
+        "                if n < 2:",
+        "                    repl = libsbml.ASTNode(libsbml.AST_CONSTANT_TRUE)",
+        "                else:",
+        "                    repl = libsbml.ASTNode(libsbml.AST_LOGICAL_AND)",
+        "                    for j in range(n - 1):",
+        "                        pair = libsbml.ASTNode(child.getType())",
+        "                        pair.addChild(child.getChild(j).deepCopy())",
+        "                        pair.addChild(child.getChild(j + 1).deepCopy())",
+        "                        repl.addChild(pair)",
+        "                current.replaceChild(k, repl, True)",
+        "                child = current.getChild(k)",
+        "            stack.append(child)",
+        "    if node.getType() in RELATIONAL and node.getNumChildren() != 2:",
+        "        wrapper = libsbml.ASTNode(libsbml.AST_FUNCTION_PIECEWISE)",
+        "        wrapper.addChild(node)",
+        "        node = normalize_math(wrapper).getChild(0).deepCopy()",
+        "    return node",
+        "",
+        "def math_formula(obj):",
+        "    math = obj.getMath()",
+        "    return None if math is None else libsbml.formulaToL3String(normalize_math(math))",
         "",
         "compartments = {}",
         "for i in range(model.getNumCompartments()):",
         "    compartment = model.getCompartment(i)",
-        "    compartments[compartment.getId()] = number(compartment.getSize())",
+        "    size = compartment.getSize() if compartment.isSetSize() else None",
+        "    compartments[compartment.getId()] = {",
+        "        'size': number(size),",
+        "        'spatialDimensions': (",
+        "            number(compartment.getSpatialDimensions())",
+        "            if compartment.isSetSpatialDimensions() else None",
+        "        )",
+        "    }",
         "",
         "parameters = {}",
         "for i in range(model.getNumParameters()):",
@@ -47,34 +104,51 @@ sbml_python_script <- function() {
         "species = []",
         "for i in range(model.getNumSpecies()):",
         "    item = model.getSpecies(i)",
+        "    compartment_id = item.getCompartment()",
+        "    # Keep raw amount/concentration; R converts around initialAssignment",
+        "    # so compartment size from IA is honored and hosu*concentration",
+        "    # is multiplied by volume.",
         "    initial = None",
+        "    initial_type = None",
         "    if item.isSetInitialConcentration():",
-        "        initial = number(item.getInitialConcentration())",
+        "        initial = item.getInitialConcentration()",
+        "        initial_type = 'concentration'",
         "    elif item.isSetInitialAmount():",
-        "        initial = number(item.getInitialAmount())",
-        "        size = compartments.get(item.getCompartment())",
-        "        if not item.getHasOnlySubstanceUnits() and size not in (None, 0):",
-        "            initial = initial / size",
-        "    if initial is None:",
-        "        initial = 0.0",
-        "    species.append({'id': item.getId(), 'initial': initial})",
+        "        initial = item.getInitialAmount()",
+        "        initial_type = 'amount'",
+        "    # No initial value: keep None; R decides (IA/rule or explicit error).",
+        "    species.append({",
+        "        'id': item.getId(),",
+        "        'initial': number(initial),",
+        "        'initialType': initial_type,",
+        "        'compartment': compartment_id,",
+        "        'boundaryCondition': item.getBoundaryCondition(),",
+        "        'constant': item.getConstant(),",
+        "        'hasOnlySubstanceUnits': item.getHasOnlySubstanceUnits(),",
+        "        'conversionFactor': (",
+        "            item.getConversionFactor() if item.isSetConversionFactor() else None",
+        "        )",
+        "    })",
+        "",
+        "def species_reference(ref):",
+        "    return {",
+        "        'id': optional_id(ref),",
+        "        'species': ref.getSpecies(),",
+        "        'stoich': number(ref.getStoichiometry())",
+        "    }",
         "",
         "reactions = []",
         "for i in range(model.getNumReactions()):",
         "    reaction = model.getReaction(i)",
-        "    reactants = []",
-        "    for j in range(reaction.getNumReactants()):",
-        "        ref = reaction.getReactant(j)",
-        "        reactants.append({'species': ref.getSpecies(), 'stoich': number(ref.getStoichiometry())})",
-        "    products = []",
-        "    for j in range(reaction.getNumProducts()):",
-        "        ref = reaction.getProduct(j)",
-        "        products.append({'species': ref.getSpecies(), 'stoich': number(ref.getStoichiometry())})",
+        "    reactants = [species_reference(reaction.getReactant(j))",
+        "                 for j in range(reaction.getNumReactants())]",
+        "    products = [species_reference(reaction.getProduct(j))",
+        "                for j in range(reaction.getNumProducts())]",
         "    formula = None",
         "    local_parameters = {}",
         "    law = reaction.getKineticLaw()",
         "    if law is not None:",
-        "        formula = libsbml.formulaToL3String(law.getMath())",
+        "        formula = math_formula(law)",
         "        for j in range(law.getNumLocalParameters()):",
         "            parameter = law.getLocalParameter(j)",
         "            if parameter.isSetValue():",
@@ -88,6 +162,63 @@ sbml_python_script <- function() {
         "                      'products': products, 'formula': formula,",
         "                      'parameters': local_parameters})",
         "",
+        "initial_assignments = []",
+        "for i in range(model.getNumInitialAssignments()):",
+        "    assignment = model.getInitialAssignment(i)",
+        "    initial_assignments.append({",
+        "        'symbol': assignment.getSymbol(),",
+        "        'formula': math_formula(assignment)",
+        "    })",
+        "",
+        "rules = []",
+        "for i in range(model.getNumRules()):",
+        "    rule = model.getRule(i)",
+        "    type_code = rule.getTypeCode()",
+        "    if type_code == libsbml.SBML_ASSIGNMENT_RULE:",
+        "        rule_type = 'assignment'",
+        "        variable = rule.getVariable()",
+        "    elif type_code == libsbml.SBML_RATE_RULE:",
+        "        rule_type = 'rate'",
+        "        variable = rule.getVariable()",
+        "    elif type_code == libsbml.SBML_ALGEBRAIC_RULE:",
+        "        rule_type = 'algebraic'",
+        "        variable = None",
+        "    else:",
+        "        rule_type = 'unknown'",
+        "        variable = None",
+        "    rules.append({",
+        "        'type': rule_type,",
+        "        'variable': variable,",
+        "        'formula': math_formula(rule)",
+        "    })",
+        "",
+        "events = []",
+        "for i in range(model.getNumEvents()):",
+        "    event = model.getEvent(i)",
+        "    trigger = event.getTrigger() if event.isSetTrigger() else None",
+        "    delay = event.getDelay() if event.isSetDelay() else None",
+        "    priority = event.getPriority() if event.isSetPriority() else None",
+        "    events.append({",
+        "        'id': optional_id(event),",
+        "        'trigger': math_formula(trigger) if trigger is not None else None,",
+        "        'initialValue': (",
+        "            trigger.getInitialValue()",
+        "            if trigger is not None and trigger.isSetInitialValue() else None",
+        "        ),",
+        "        'persistent': (",
+        "            trigger.getPersistent()",
+        "            if trigger is not None and trigger.isSetPersistent() else None",
+        "        ),",
+        "        'delay': math_formula(delay) if delay is not None else None,",
+        "        'priority': math_formula(priority) if priority is not None else None,",
+        "        'useValuesFromTriggerTime': event.getUseValuesFromTriggerTime(),",
+        "        'assignments': [",
+        "            {'variable': a.getVariable(), 'formula': math_formula(a)}",
+        "            for a in (event.getEventAssignment(j)",
+        "                      for j in range(event.getNumEventAssignments()))",
+        "        ]",
+        "    })",
+        "",
         "errors = []",
         "warnings = []",
         "for i in range(document.getNumErrors()):",
@@ -98,11 +229,47 @@ sbml_python_script <- function() {
         "    else:",
         "        warnings.append(entry)",
         "",
-        "print(json.dumps({'species': species, 'parameters': parameters,",
-        "                   'reactions': reactions, 'errors': errors,",
-        "                   'warnings': warnings}))"
+        "print(json.dumps({",
+        "    'compartments': compartments,",
+        "    'species': species,",
+        "    'parameters': parameters,",
+        "    'reactions': reactions,",
+        "    'initialAssignments': initial_assignments,",
+        "    'rules': rules,",
+        "    'events': events,",
+        "    'conversionFactor': (",
+        "        model.getConversionFactor() if model.isSetConversionFactor() else None",
+        "    ),",
+        "    'errors': errors,",
+        "    'warnings': warnings",
+        "}))"
     ), script)
     script
+}
+
+sbml_decode_number <- function(value) {
+    if (is.null(value) || length(value) != 1L) {
+        return(value)
+    }
+    if (is.character(value)) {
+        if (identical(value, "Inf")) {
+            return(Inf)
+        }
+        if (identical(value, "-Inf")) {
+            return(-Inf)
+        }
+        if (identical(value, "NaN")) {
+            return(NaN)
+        }
+    }
+    value
+}
+
+sbml_decode_numbers <- function(node) {
+    if (is.list(node)) {
+        return(lapply(node, sbml_decode_numbers))
+    }
+    sbml_decode_number(node)
 }
 
 sbml_run_bridge <- function(xml_file_path) {
@@ -132,7 +299,8 @@ sbml_run_bridge <- function(xml_file_path) {
     if (!is.null(status) && status != 0L) {
         stop("libSBML could not read the file: ", paste(output, collapse = "\n"))
     }
-    jsonlite::fromJSON(paste(output, collapse = ""), simplifyVector = FALSE)
+    parsed <- jsonlite::fromJSON(paste(output, collapse = ""), simplifyVector = FALSE)
+    sbml_decode_numbers(parsed)
 }
 
 #' Validate an SBML document using libSBML.
@@ -165,16 +333,583 @@ sbml_reaction_side <- function(references) {
     paste(parts, collapse = " + ")
 }
 
+#' Build an evaluation environment for SBML MathML/L3 formulas.
+#'
+#' Maps common `formulaToL3String` identifiers onto R functions so kinetic
+#' laws can be evaluated with `eval(parse(text = formula), envir = env)`
+#' without textual rewriting.
+#'
+#' @param values Named list or vector of symbol values.
+#' @return An environment suitable for `eval()`.
+#' @export
+sbml_math_env <- function(values) {
+    env <- new.env(parent = baseenv())
+    env$ceil <- ceiling
+    env$ln <- log
+    env$exponentiale <- exp(1)
+    env$true <- TRUE
+    env$false <- FALSE
+    # csymbols: `time` is 0 outside a simulation (initialAssignment);
+    # kinetic closures overwrite it with the solver time. Avogadro per L3v2.
+    env$time <- 0
+    env$avogadro <- 6.02214076e23
+    # Constants written by formulaToL3String (`INF`, `NaN`) and L3 aliases.
+    env$INF <- Inf
+    env$inf <- Inf
+    env$infinity <- Inf
+    env$notanumber <- NaN
+    # MathML n-ary operators: formulaToL3String keeps the function form when
+    # they have 0 or 1 argument (`plus()`, `times()`, `and(true)`, ...).
+    env$plus <- function(...) sum(as.numeric(c(...)), 0)
+    env$times <- function(...) prod(as.numeric(c(...)), 1)
+    env$and <- function(...) all(as.logical(c(...)))
+    env$or <- function(...) any(as.logical(c(...)))
+    # Base R xor() is binary; MathML xor is n-ary (true with odd count).
+    env$xor <- function(...) sum(as.logical(c(...))) %% 2L == 1L
+    env$implies <- function(a, b) !isTRUE(as.logical(a)) || isTRUE(as.logical(b))
+    # MathML quotient/rem: integer quotient truncated toward zero and the
+    # remainder with the sign of the dividend (a = b * quotient + rem).
+    env$quotient <- function(a, b) trunc(a / b)
+    env$rem <- function(a, b) a - b * trunc(a / b)
+    # Trigonometric functions missing from base R, with SBML names.
+    env$sec <- function(x) 1 / cos(x)
+    env$csc <- function(x) 1 / sin(x)
+    env$cot <- function(x) 1 / tan(x)
+    env$sech <- function(x) 1 / cosh(x)
+    env$csch <- function(x) 1 / sinh(x)
+    env$coth <- function(x) 1 / tanh(x)
+    env$arcsin <- asin
+    env$arccos <- acos
+    env$arctan <- atan
+    env$arcsinh <- asinh
+    env$arccosh <- acosh
+    env$arctanh <- atanh
+    env$arcsec <- function(x) acos(1 / x)
+    env$arccsc <- function(x) asin(1 / x)
+    env$arccot <- function(x) atan(1 / x)
+    env$arcsech <- function(x) acosh(1 / x)
+    env$arccsch <- function(x) asinh(1 / x)
+    env$arccoth <- function(x) atanh(1 / x)
+    # L3 `root(n, x)` and `log(base, x)` (R's log has the opposite order).
+    env$root <- function(n, x) {
+        if (missing(x)) sqrt(n) else x^(1 / n)
+    }
+    env$log <- function(a, b) {
+        if (missing(b)) base::log10(a) else base::log(b, base = a)
+    }
+    env$piecewise <- function(...) {
+        args <- list(...)
+        n <- length(args)
+        if (n == 0L) {
+            return(NA_real_)
+        }
+        # SBML piecewise(value1, cond1, ..., valueN, condN[, otherwise]).
+        # A lone otherwise argument is valid and must not call seq(1, 0, by=2).
+        if (n == 1L) {
+            return(args[[1L]])
+        }
+        last_piece <- if (n %% 2L == 0L) n else (n - 1L)
+        for (i in seq.int(1L, last_piece, by = 2L)) {
+            if (isTRUE(args[[i + 1L]])) {
+                return(args[[i]])
+            }
+        }
+        if (n %% 2L == 1L) args[[n]] else NA_real_
+    }
+    list2env(as.list(values), envir = env)
+    env
+}
+
+sbml_compartment_size <- function(parsed, compartment_id) {
+    if (is.null(compartment_id) || !nzchar(compartment_id)) {
+        return(NA_real_)
+    }
+    compartment <- parsed$compartments[[compartment_id]]
+    if (is.null(compartment) || is.null(compartment$size)) {
+        return(NA_real_)
+    }
+    as.numeric(compartment$size)
+}
+
+#' Collect SBML name -> value bindings used when evaluating kinetic laws.
+#'
+#' Includes compartment sizes, parameters, species raw initials (amount or
+#' concentration as declared; unit conversion is applied around
+#' `initialAssignment` via `sbml_apply_species_initial_units()`), and
+#' stoichiometries keyed by `speciesReference` id.
+#'
+#' @param parsed Bridge output from `sbml_run_bridge()`.
+#' @return A named list of numeric symbol values.
+sbml_build_symbols <- function(parsed) {
+    symbols <- list()
+
+    for (name in names(parsed$compartments)) {
+        size <- parsed$compartments[[name]]$size
+        if (!is.null(size)) {
+            symbols[[name]] <- as.numeric(size)
+        }
+    }
+
+    for (name in names(parsed$parameters)) {
+        symbols[[name]] <- as.numeric(parsed$parameters[[name]])
+    }
+
+    for (item in parsed$species) {
+        # Raw initialAmount / initialConcentration from the bridge; NA when the
+        # species declares no initial value (resolved by IA or rejected later).
+        symbols[[item$id]] <- if (is.null(item$initial)) NA_real_ else as.numeric(item$initial)
+    }
+
+    for (reaction in parsed$reactions) {
+        for (ref in c(reaction$reactants, reaction$products)) {
+            if (!is.null(ref$id) && nzchar(ref$id)) {
+                symbols[[ref$id]] <- as.numeric(ref$stoich)
+            }
+        }
+    }
+
+    symbols
+}
+
+#' Convert species attribute initials into simulated units.
+#'
+#' Always converts from the bridge raw `initial` (amount or concentration as
+#' declared), never from a previously converted symbol value. Call once with
+#' the declared compartment size before resolving `initialAssignment` (so
+#' formulas see concentrations), then again afterwards for species that were
+#' not overwritten, using the resolved size.
+#'
+#' Species whose value was set by an `initialAssignment` are left unchanged
+#' (already in the species units).
+#'
+#' Simulated units follow DNAr/SBML practice:
+#' - `hasOnlySubstanceUnits` or 0D compartment: amount
+#' - otherwise: concentration (= amount / volume)
+#'
+#' @param parsed Bridge output from `sbml_run_bridge()`.
+#' @param symbols Symbol table (before or after `initialAssignment`).
+#' @param assigned_species Species ids overwritten by initialAssignment.
+#' @param strict If `TRUE`, missing/invalid volume is an error; if `FALSE`,
+#'   skip conversion (needed when size exists only via `initialAssignment`).
+#' @return Updated symbol table.
+sbml_apply_species_initial_units <- function(parsed, symbols,
+                                             assigned_species = character(),
+                                             strict = TRUE) {
+    assigned_species <- as.character(assigned_species)
+    for (item in parsed$species) {
+        id <- item$id
+        if (id %in% assigned_species) {
+            next
+        }
+        initial_type <- item$initialType
+        if (is.null(initial_type) || !nzchar(initial_type)) {
+            next
+        }
+        compartment <- parsed$compartments[[item$compartment]]
+        dims <- if (is.null(compartment)) {
+            NA_real_
+        } else {
+            as.numeric(compartment$spatialDimensions)
+        }
+        amount_state <- isTRUE(item$hasOnlySubstanceUnits) ||
+            (!is.na(dims) && dims == 0)
+        # Always from raw attribute so a second pass can redo with resolved V.
+        value <- as.numeric(item$initial)
+        if (length(value) != 1L || !is.finite(value)) {
+            next
+        }
+
+        need_volume <- (identical(initial_type, "amount") && !amount_state) ||
+            (identical(initial_type, "concentration") && amount_state)
+        if (!need_volume) {
+            symbols[[id]] <- value
+            next
+        }
+
+        volume <- symbols[[item$compartment]]
+        if (length(volume) != 1L) {
+            volume <- if (is.null(compartment)) NULL else compartment$size
+        }
+        volume <- as.numeric(volume)
+        # NULL -> numeric(0); length check avoids `!is.finite(numeric(0))`.
+        volume_ok <- length(volume) == 1L && is.finite(volume) &&
+            !(identical(initial_type, "amount") && !amount_state && volume == 0)
+        if (!volume_ok) {
+            if (isTRUE(strict)) {
+                stop(
+                    "volume invalido para especie '", id,
+                    "' ao converter initial",
+                    if (identical(initial_type, "amount")) "Amount" else "Concentration"
+                )
+            }
+            next
+        }
+
+        if (identical(initial_type, "amount") && !amount_state) {
+            symbols[[id]] <- value / volume
+        } else {
+            symbols[[id]] <- value * volume
+        }
+    }
+    symbols
+}
+
+#' Per-species SBML metadata, including compartment volume for Papel C.
+#'
+#' @param parsed Bridge output from `sbml_run_bridge()`.
+#' @return A named list of species info lists (`volume`, flags, ...).
+sbml_build_species_info <- function(parsed) {
+    info <- lapply(parsed$species, function(item) {
+        list(
+            compartment = item$compartment,
+            volume = sbml_compartment_size(parsed, item$compartment),
+            spatialDimensions = {
+                compartment <- parsed$compartments[[item$compartment]]
+                if (is.null(compartment)) NA_real_ else as.numeric(compartment$spatialDimensions)
+            },
+            boundaryCondition = isTRUE(item$boundaryCondition),
+            constant = isTRUE(item$constant),
+            hasOnlySubstanceUnits = isTRUE(item$hasOnlySubstanceUnits),
+            conversionFactor = item$conversionFactor,
+            initialType = item$initialType
+        )
+    })
+    setNames(info, vapply(parsed$species, `[[`, character(1), "id"))
+}
+
+#' Species that must stay at their initial value (`boundaryCondition`/`constant`).
+#'
+#' @param parsed Bridge output from `sbml_run_bridge()`.
+#' @return Character vector of fixed species ids.
+sbml_fixed_species <- function(parsed) {
+    if (length(parsed$species) == 0L) {
+        return(character())
+    }
+    ids <- vapply(parsed$species, `[[`, character(1), "id")
+    keep <- vapply(parsed$species, function(item) {
+        isTRUE(item$boundaryCondition) || isTRUE(item$constant)
+    }, logical(1))
+    ids[keep]
+}
+
+#' Constant non-species symbols exposed as simulation outputs.
+#'
+#' Compartment sizes and parameters (including those filled by
+#' `initialAssignment`) are returned; species and `speciesReference` ids
+#' are excluded.
+#'
+#' @param parsed Bridge output from `sbml_run_bridge()`.
+#' @param symbols Resolved symbol table.
+#' @param species Character vector of species ids.
+#' @return Named list of numeric constants.
+sbml_build_outputs <- function(parsed, symbols, species) {
+    ref_ids <- character()
+    for (reaction in parsed$reactions) {
+        for (ref in c(reaction$reactants, reaction$products)) {
+            if (!is.null(ref$id) && nzchar(ref$id)) {
+                ref_ids <- c(ref_ids, ref$id)
+            }
+        }
+    }
+    keep <- setdiff(names(symbols), c(species, ref_ids))
+    if (length(keep) == 0L) {
+        return(list())
+    }
+    lapply(symbols[keep], as.numeric)
+}
+
+#' Per-species derivative scales for SBML kinetic laws.
+#'
+#' SBML kinetic laws are kept as amount/time. Each species then converts to
+#' its simulated unit via `react4(dx_scale=...)`:
+#' - concentration in a 1D/2D/3D compartment: `conversionFactor / V`
+#' - `hasOnlySubstanceUnits` or 0D compartment: `conversionFactor`
+#'
+#' Species-level `conversionFactor` overrides the model default; missing
+#' factors are treated as 1. Compartment size prefers the resolved symbol
+#' table (so `initialAssignment` to size is honored).
+#'
+#' @param parsed Bridge output from `sbml_run_bridge()`.
+#' @param symbols Resolved symbol table.
+#' @return Named numeric vector aligned with species ids.
+sbml_species_conversion_factors <- function(parsed, symbols) {
+    if (length(parsed$species) == 0L) {
+        return(numeric())
+    }
+    model_cf <- parsed$conversionFactor
+    setNames(vapply(parsed$species, function(item) {
+        cf_name <- item$conversionFactor
+        if (is.null(cf_name) || !nzchar(cf_name)) {
+            cf_name <- model_cf
+        }
+        cf <- 1
+        if (!is.null(cf_name) && nzchar(cf_name)) {
+            value <- symbols[[cf_name]]
+            if (is.null(value) || !is.finite(as.numeric(value))) {
+                stop("conversionFactor '", cf_name, "' sem valor numerico")
+            }
+            cf <- as.numeric(value)
+        }
+        compartment <- parsed$compartments[[item$compartment]]
+        dims <- if (is.null(compartment)) {
+            NA_real_
+        } else {
+            as.numeric(compartment$spatialDimensions)
+        }
+        amount_state <- isTRUE(item$hasOnlySubstanceUnits) ||
+            (!is.na(dims) && dims == 0)
+        if (amount_state) {
+            return(cf)
+        }
+        volume <- symbols[[item$compartment]]
+        if (is.null(volume)) {
+            volume <- if (is.null(compartment)) NULL else compartment$size
+        }
+        volume <- as.numeric(volume)
+        if (!is.finite(volume) || volume <= 0) {
+            stop(
+                "volume invalido para especie '", item$id,
+                "' ao montar dx_scale"
+            )
+        }
+        cf / volume
+    }, numeric(1)), vapply(parsed$species, `[[`, character(1), "id"))
+}
+
+#' Build `react4` forcing functions that hold fixed species at `ci`.
+#'
+#' With the forced value equal to the initial state, the
+#' `(value - y) / tau` term in `react4` stays zero and the species does
+#' not drift.
+#'
+#' @param model DNAr SBML model from `read_sbml_to_dnar()`.
+#' @return Named list of constant functions, or `NULL` when none.
+#' @export
+sbml_forced_concentrations <- function(model) {
+    fixed <- model$fixed_species
+    if (is.null(fixed) || length(fixed) == 0L) {
+        return(NULL)
+    }
+    lapply(model$ci[fixed], function(v) {
+        force(v)
+        function(t) v
+    })
+}
+
+sbml_merge_values <- function(symbols, local_parameters) {
+    values <- symbols
+    for (name in names(local_parameters)) {
+        values[[name]] <- as.numeric(local_parameters[[name]])
+    }
+    values
+}
+
+#' Resolve SBML `initialAssignment` formulas in dependency order (Kahn).
+#'
+#' Only dependencies among assignment targets are ordered; other symbols are
+#' read from `values`. Cyclic target graphs raise an error.
+#'
+#' @param assignments List of lists with `symbol` and `formula`.
+#' @param values Named list or vector of already-known symbol values.
+#' @return Named list of values with assignment targets applied.
+sbml_resolve_initial_assignments <- function(assignments, values,
+                                             reactions = list()) {
+    # L3v2 allows <initialAssignment> without <math>: it has no effect. Drop
+    # it here; `parse(text = NULL)` would read R's stdin (in Rscript, the
+    # rest of the calling script).
+    assignments <- Filter(function(a) {
+        !is.null(a$formula) && length(a$formula) == 1L && nzchar(a$formula)
+    }, assignments)
+    if (length(assignments) == 0L) {
+        return(values)
+    }
+    targets <- vapply(assignments, `[[`, character(1), "symbol")
+    exprs <- setNames(
+        lapply(assignments, function(a) parse(text = a$formula)[[1]]),
+        targets
+    )
+    # A reaction id inside a formula stands for that reaction's rate (its
+    # kinetic law). Add only the referenced ones (transitively) as extra
+    # targets, evaluated with the law's local parameters; they are removed
+    # from the result so they never become parameters/outputs.
+    rate_defs <- Filter(function(r) {
+        !is.null(r$id) && nzchar(r$id) &&
+            !is.null(r$formula) && length(r$formula) == 1L && nzchar(r$formula)
+    }, reactions)
+    rate_defs <- setNames(rate_defs, vapply(rate_defs, `[[`, character(1), "id"))
+    rate_ids <- character()
+    repeat {
+        used <- unique(unlist(lapply(exprs, all.vars)))
+        new_ids <- setdiff(intersect(used, names(rate_defs)), c(rate_ids, targets))
+        if (length(new_ids) == 0L) break
+        for (id in new_ids) {
+            exprs[[id]] <- parse(text = rate_defs[[id]]$formula)[[1]]
+        }
+        rate_ids <- c(rate_ids, new_ids)
+        targets <- c(targets, new_ids)
+    }
+    deps <- lapply(exprs, function(e) intersect(all.vars(e), targets))
+    indeg <- vapply(deps, length, integer(1))
+    queue <- targets[indeg == 0L]
+    ord <- character()
+    while (length(queue)) {
+        n <- queue[[1]]
+        queue <- queue[-1]
+        ord <- c(ord, n)
+        for (t in targets) {
+            if (n %in% deps[[t]]) {
+                indeg[[t]] <- indeg[[t]] - 1L
+                if (indeg[[t]] == 0L) {
+                    queue <- c(queue, t)
+                }
+            }
+        }
+    }
+    if (length(ord) < length(targets)) {
+        stop(
+            "initialAssignment cíclico: ",
+            paste(setdiff(targets, ord), collapse = ", ")
+        )
+    }
+    env <- sbml_math_env(values)
+    for (t in ord) {
+        eval_env <- env
+        if (t %in% rate_ids && length(rate_defs[[t]]$parameters) > 0L) {
+            eval_env <- list2env(
+                lapply(rate_defs[[t]]$parameters, as.numeric),
+                parent = env
+            )
+        }
+        assign(t, eval(exprs[[t]], envir = eval_env), envir = env)
+    }
+    keep <- setdiff(union(names(values), targets), rate_ids)
+    as.list(unlist(mget(keep, envir = env)))
+}
+
+#' Write `initialAssignment`-resolved stoichiometries back into `parsed`.
+#'
+#' A `speciesReference` with an `id` can have its stoichiometry set by an
+#' `initialAssignment` (SBML L3, e.g. case 01066). Downstream code (reaction
+#' strings, kinetic classification) reads `ref$stoich`, so the resolved value
+#' from `symbols` replaces the raw attribute. A stoichiometry that is still
+#' undefined is rejected explicitly.
+#'
+#' @param parsed Bridge output from `sbml_run_bridge()`.
+#' @param symbols Symbol table after `sbml_resolve_initial_assignments()`.
+#' @return `parsed` with resolved `stoich` values.
+sbml_apply_resolved_stoichiometry <- function(parsed, symbols) {
+    resolve <- function(refs) {
+        lapply(refs, function(ref) {
+            if (!is.null(ref$id) && nzchar(ref$id) && !is.null(symbols[[ref$id]])) {
+                ref$stoich <- as.numeric(symbols[[ref$id]])
+            }
+            stoich <- as.numeric(ref$stoich)
+            if (length(stoich) != 1L || !is.finite(stoich)) {
+                stop(
+                    "não suportado: estequiometria indefinida para '",
+                    ref$species, "'",
+                    if (!is.null(ref$id) && nzchar(ref$id)) paste0(" (", ref$id, ")") else ""
+                )
+            }
+            ref
+        })
+    }
+    parsed$reactions <- lapply(parsed$reactions, function(reaction) {
+        reaction$reactants <- resolve(reaction$reactants)
+        reaction$products <- resolve(reaction$products)
+        reaction
+    })
+    parsed
+}
+
+#' Move negative stoichiometries to the other side of the reaction.
+#'
+#' SBML allows a negative `stoichiometry` (e.g. set by an initialAssignment,
+#' case 01561). A product with stoichiometry -s changes its species exactly
+#' like a reactant with +s, but the DNAr parser only accepts positive
+#' coefficients and silently ignores `-sX`. The flux is unchanged: the moved
+#' species does not appear in the law as a mass-action factor, so the kinetic
+#' detector classifies the law as `general` and keeps it as full propensity.
+#'
+#' @param parsed Bridge output after `sbml_apply_resolved_stoichiometry()`.
+#' @return `parsed` with only non-negative stoichiometries.
+sbml_flip_negative_stoichiometry <- function(parsed) {
+    negative <- function(ref) as.numeric(ref$stoich) < 0
+    flip <- function(ref) {
+        ref$stoich <- -as.numeric(ref$stoich)
+        ref
+    }
+    parsed$reactions <- lapply(parsed$reactions, function(reaction) {
+        neg_r <- vapply(reaction$reactants, negative, logical(1))
+        neg_p <- vapply(reaction$products, negative, logical(1))
+        if (!any(neg_r) && !any(neg_p)) {
+            return(reaction)
+        }
+        reactants <- c(reaction$reactants[!neg_r], lapply(reaction$products[neg_p], flip))
+        products <- c(reaction$products[!neg_p], lapply(reaction$reactants[neg_r], flip))
+        reaction$reactants <- reactants
+        reaction$products <- products
+        reaction
+    })
+    parsed
+}
+
+#' Reject species that end up with no initial value.
+#'
+#' A species without `initialAmount`/`initialConcentration` must get its value
+#' from an `initialAssignment` or a rule. Previously the bridge silently used
+#' 0; now the missing value is an explicit error. Rule targets keep 0 because
+#' rules are exposed as metadata only (those cases are filtered as unsupported).
+#'
+#' @param parsed Bridge output from `sbml_run_bridge()`.
+#' @param symbols Symbol table after initial assignments and unit conversion.
+#' @param assigned_symbols Ids set by `initialAssignment`.
+#' @return Invisibly `TRUE`; errors otherwise.
+sbml_check_species_initial_defined <- function(parsed, symbols, assigned_symbols) {
+    rule_targets <- unlist(lapply(parsed$rules, `[[`, "variable"))
+    missing <- character()
+    for (item in parsed$species) {
+        if (!is.null(item$initial) || item$id %in% assigned_symbols) {
+            next
+        }
+        if (item$id %in% rule_targets) {
+            next
+        }
+        missing <- c(missing, item$id)
+    }
+    if (length(missing) > 0L) {
+        stop(
+            "não suportado: espécie sem valor inicial (sem initialAmount, ",
+            "initialConcentration, initialAssignment ou regra): ",
+            paste(missing, collapse = ", ")
+        )
+    }
+    invisible(TRUE)
+}
+
 #' Read an SBML model into a DNAr CRN.
 #'
-#' Species initial amounts are converted to concentrations using their
-#' compartment size. Reactions with mass-action kinetic laws expose their
-#' constant in `ki`. Non-mass-action laws are reported in `kinetic_laws` and
-#' use their value at the initial state as a compatibility fallback.
+#' Species attribute initials are converted into simulated units (concentration
+#' unless `hasOnlySubstanceUnits` or 0D) twice around `initialAssignment`:
+#' first with the declared compartment size (`strict = FALSE`) so IA formulas
+#' read concentrations; then again from the raw attribute with the resolved
+#' size for species that were not overwritten. With hosu +
+#' `initialConcentration`, the value is multiplied by volume.
+#' `initialAssignment` formulas are resolved (Kahn topological order) before
+#' `ci` and `ki` are computed. Kinetic laws stay in amount/time; per-species
+#' `conversion_factors` (`CF/V`, or `CF` for hosu/0D) are meant for
+#' `react4(dx_scale=...)`. Constant compartments and parameters are listed
+#' in `outputs` for non-species reference columns. Reactions with mass-action
+#' kinetic laws expose their constant in `ki`. Non-mass-action laws are
+#' reported in `kinetic_laws` as full-propensity functions. Species with
+#' `boundaryCondition` or `constant` are listed in `fixed_species` for use
+#' with `forced_concentrations`.
 #'
 #' @param xml_file_path Path to an SBML document.
 #' @return A DNAr-compatible list containing `species`, `ci`, `reactions`,
-#'   `ki`, and SBML kinetic-law metadata.
+#'   `ki`, `symbols`, `outputs`, `conversion_factors`, `species_info`,
+#'   `fixed_species`, `rules` and `events` (metadata only; not applied), and SBML
+#'   kinetic-law metadata.
 #' @export
 read_sbml_to_dnar <- function(xml_file_path) {
     parsed <- sbml_run_bridge(xml_file_path)
@@ -182,52 +917,115 @@ read_sbml_to_dnar <- function(xml_file_path) {
         messages <- vapply(parsed$errors, `[[`, character(1), "message")
         stop("Invalid SBML: ", paste(messages, collapse = "; "))
     }
+    if (length(parsed$compartments) > 1L) {
+        stop("não suportado: múltiplos compartimentos")
+    }
 
+    # An initialAssignment without <math> has no effect (L3v2).
+    parsed$initialAssignments <- Filter(function(a) {
+        !is.null(a$formula) && length(a$formula) == 1L && nzchar(a$formula)
+    }, parsed$initialAssignments)
+    assigned_symbols <- if (length(parsed$initialAssignments) == 0L) {
+        character()
+    } else {
+        vapply(parsed$initialAssignments, `[[`, character(1), "symbol")
+    }
+    # Declared size first so IA math sees concentrations; skip if V is IA-only.
+    symbols <- sbml_apply_species_initial_units(
+        parsed,
+        sbml_build_symbols(parsed),
+        assigned_species = character(),
+        strict = FALSE
+    )
+    symbols <- sbml_resolve_initial_assignments(
+        parsed$initialAssignments,
+        symbols,
+        reactions = parsed$reactions
+    )
+    # Redo from raw with resolved V; keep IA-assigned species as-is.
+    symbols <- sbml_apply_species_initial_units(
+        parsed,
+        symbols,
+        assigned_species = assigned_symbols,
+        strict = TRUE
+    )
+    parsed <- sbml_apply_resolved_stoichiometry(parsed, symbols)
+    parsed <- sbml_flip_negative_stoichiometry(parsed)
+    # A reaction with no reactants and no products changes no species; DNAr
+    # rejects `0 -> 0`. Its id may still be read by an initialAssignment,
+    # which was resolved above, so it is safe to drop it here.
+    parsed$reactions <- Filter(function(reaction) {
+        length(reaction$reactants) + length(reaction$products) > 0L
+    }, parsed$reactions)
+    # species_info$volume (used to report amounts) must use the size resolved
+    # by initialAssignment, the same one used to convert initialAmount.
+    for (name in names(parsed$compartments)) {
+        size <- symbols[[name]]
+        if (length(size) == 1L && !is.na(size)) {
+            parsed$compartments[[name]]$size <- as.numeric(size)
+        }
+    }
+    sbml_check_species_initial_defined(parsed, symbols, assigned_symbols)
     species <- vapply(parsed$species, `[[`, character(1), "id")
     ci <- setNames(
-        vapply(parsed$species, function(item) as.numeric(item$initial), numeric(1)),
+        vapply(species, function(id) as.numeric(symbols[[id]]), numeric(1)),
         species
     )
     global_parameters <- parsed$parameters
+    species_info <- sbml_build_species_info(parsed)
+    fixed_species <- sbml_fixed_species(parsed)
 
+    # DNAr parses a single net rate; SBML `reversible` with one kinetic law
+    # is still that net flux. Emitting `<->` breaks the `->` splitter.
     reactions <- vapply(parsed$reactions, function(reaction) {
         paste(
             sbml_reaction_side(reaction$reactants),
-            if (isTRUE(reaction$reversible)) "<->" else "->",
+            "->",
             sbml_reaction_side(reaction$products)
         )
     }, character(1))
+    conversion_factors <- sbml_species_conversion_factors(parsed, symbols)
+    outputs <- sbml_build_outputs(parsed, symbols, species)
+
+    sbml_full_rate <- function(value_or_fun) {
+        if (is.function(value_or_fun)) {
+            attr(value_or_fun, "sbml_full_propensity") <- TRUE
+            return(value_or_fun)
+        }
+        rate <- as.numeric(value_or_fun)
+        fun <- function(t, y) rate
+        attr(fun, "sbml_full_propensity") <- TRUE
+        fun
+    }
 
     # A kinetic-law formula is mass action when it consists of a constant
-    # parameter multiplied by exactly the reactant powers.
-    ki <- vapply(parsed$reactions, function(reaction) {
+    # parameter multiplied by exactly the reactant powers. Otherwise ki is
+    # a function that already includes the full propensity (no extra MA term).
+    ki <- lapply(parsed$reactions, function(reaction) {
         formula <- reaction$formula
-        values <- c(global_parameters, reaction$parameters)
+        values <- sbml_merge_values(symbols, reaction$parameters)
         if (is.null(formula) || !nzchar(formula)) {
             warning("Reaction '", reaction$id, "' has no kinetic law; using 1.")
             return(1)
         }
-        parameter_names <- names(values)
-        reactant_term <- paste(
-            vapply(reaction$reactants, function(ref) {
-                paste0(ref$species, "^", ref$stoich)
-            }, character(1)),
-            collapse = " * "
-        )
+        constant_values <- values
+        for (name in species) {
+            constant_values[[name]] <- NULL
+        }
+        parameter_names <- names(constant_values)
         candidate <- formula
         for (name in parameter_names) {
             candidate <- gsub(
                 paste0("(?<![A-Za-z0-9_])", name, "(?![A-Za-z0-9_])"),
-                format(values[[name]], scientific = FALSE, trim = TRUE),
+                format(constant_values[[name]], scientific = FALSE, trim = TRUE),
                 candidate,
                 perl = TRUE
             )
         }
         candidate <- gsub("\\s+", "", candidate)
         candidate <- gsub("\\^1(?:\\.0+)?", "", candidate)
-        species_names <- vapply(parsed$species, `[[`, character(1), "id")
         residual <- formula
-        for (name in c(parameter_names, species_names)) {
+        for (name in c(parameter_names, species)) {
             residual <- gsub(
                 paste0("(?<![A-Za-z0-9_])", name, "(?![A-Za-z0-9_])"),
                 "",
@@ -236,14 +1034,21 @@ read_sbml_to_dnar <- function(xml_file_path) {
             )
         }
         residual <- gsub("\\s+", "", residual)
-        references_only_reactants <- all(vapply(
-            species_names,
+        species_in_formula <- setNames(vapply(
+            species,
             function(name) {
-                !grepl(
+                grepl(
                     paste0("(?<![A-Za-z0-9_])", name, "(?![A-Za-z0-9_])"),
                     formula,
                     perl = TRUE
-                ) || any(vapply(
+                )
+            },
+            logical(1)
+        ), species)
+        references_only_reactants <- all(vapply(
+            species,
+            function(name) {
+                !isTRUE(species_in_formula[[name]]) || any(vapply(
                     reaction$reactants,
                     function(ref) identical(ref$species, name),
                     logical(1)
@@ -255,7 +1060,7 @@ read_sbml_to_dnar <- function(xml_file_path) {
             !grepl("\\+", residual) &&
             references_only_reactants) {
             at_one <- candidate
-            for (name in species_names) {
+            for (name in species) {
                 at_one <- gsub(
                     paste0("(?<![A-Za-z0-9_])", name, "(?![A-Za-z0-9_])"),
                     "1",
@@ -265,29 +1070,62 @@ read_sbml_to_dnar <- function(xml_file_path) {
             }
             value <- suppressWarnings(eval(parse(text = at_one), envir = baseenv()))
             if (is.numeric(value) && length(value) == 1L && is.finite(value)) {
+                if (!any(species_in_formula)) {
+                    # Constant law (e.g. speciesReference / parameter only):
+                    # stoichiometry still consumes/produces, but rate is bare.
+                    return(sbml_full_rate(value))
+                }
                 return(as.numeric(value))
             }
         }
-        initial_values <- c(as.list(ci), as.list(values))
-        for (name in names(initial_values)) {
-            candidate <- gsub(
-                paste0("(?<![A-Za-z0-9_])", name, "(?![A-Za-z0-9_])"),
-                format(initial_values[[name]], scientific = FALSE, trim = TRUE),
-                candidate,
-                perl = TRUE
-            )
-        }
-        candidate <- gsub("\\bceil\\(", "ceiling(", candidate)
-        value <- suppressWarnings(eval(parse(text = candidate), envir = baseenv()))
-        if (!is.numeric(value) || length(value) != 1L || !is.finite(value)) {
+        expr <- tryCatch(parse(text = formula)[[1]], error = function(e) NULL)
+        if (is.null(expr)) {
             warning("Could not reduce kinetic law for reaction '", reaction$id,
                     "'; using 1.")
             return(1)
         }
-        warning("Reaction '", reaction$id,
-                "' is not mass action; ki uses its initial-state rate.")
-        as.numeric(value)
-    }, numeric(1))
+        constants <- constant_values
+        fun <- function(t, y) {
+            env <- sbml_math_env(c(constants, as.list(y)))
+            env$time <- t
+            val <- suppressWarnings(eval(expr, envir = env))
+            if (!is.numeric(val) || length(val) != 1L || !is.finite(val)) {
+                stop(
+                    "Non-finite kinetic law rate at t=", t,
+                    " for species state: ",
+                    paste(names(y), "=", as.numeric(y), collapse = ", ")
+                )
+            }
+            as.numeric(val)
+        }
+        sbml_full_rate(fun)
+    })
+
+    # Arbitro por arvore sintatica (R/sbml_kinetics.R): uma lei so e acao de
+    # massas se for constante * produto dos reagentes com expoente = estequiometria.
+    # Se o detector diz "general" e a heuristica acima devolveu um numero, ela
+    # era um falso positivo (ex.: lei `k*A` para a reacao A+B->C): usa a lei
+    # completa como funcao de propensao em vez de k.
+    kinetic_info <- sbml_classify_model(parsed, symbols, species)
+    for (i in seq_along(ki)) {
+        if (kinetic_info[[i]]$class == "general" && is.numeric(ki[[i]])) {
+            reaction <- parsed$reactions[[i]]
+            values <- sbml_merge_values(symbols, reaction$parameters)
+            ki[[i]] <- sbml_general_rate_function(
+                reaction$formula, values[setdiff(names(values), species)]
+            )
+        } else if (kinetic_info[[i]]$class == "mass_action" &&
+                   is.function(ki[[i]])) {
+            # Caso inverso: a heuristica devolveu a lei completa como funcao
+            # (ex.: formacao `0 -> A` com lei `k`), mas a arvore confirma acao
+            # de massas. A traducao para DNA precisa do k numerico.
+            ki[[i]] <- kinetic_info[[i]]$k
+        }
+    }
+    if (length(ki) > 0L &&
+        all(vapply(ki, function(x) is.numeric(x) && length(x) == 1L, logical(1)))) {
+        ki <- unlist(ki, use.names = FALSE)
+    }
 
     structure(
         list(
@@ -295,9 +1133,20 @@ read_sbml_to_dnar <- function(xml_file_path) {
             ci = ci,
             reactions = reactions,
             ki = ki,
+            symbols = symbols,
+            outputs = outputs,
+            conversion_factors = conversion_factors,
+            species_info = species_info,
+            fixed_species = fixed_species,
+            rules = if (is.null(parsed$rules)) list() else parsed$rules,
+            events = if (is.null(parsed$events)) list() else parsed$events,
+            kinetic_info = kinetic_info,
             kinetic_laws = lapply(parsed$reactions, function(reaction) {
-                list(id = reaction$id, formula = reaction$formula,
-                     parameters = c(global_parameters, reaction$parameters))
+                list(
+                    id = reaction$id,
+                    formula = reaction$formula,
+                    parameters = sbml_merge_values(symbols, reaction$parameters)
+                )
             })
         ),
         class = c("dnar_sbml", "list")
